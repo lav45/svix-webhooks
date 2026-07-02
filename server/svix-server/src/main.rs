@@ -5,7 +5,7 @@
 #![forbid(unsafe_code)]
 
 use anyhow::bail;
-use chrono::{Months, Utc};
+use chrono::{Duration, Utc};
 use clap::{Parser, Subcommand};
 use dotenvy::dotenv;
 use svix_server::{
@@ -257,13 +257,13 @@ async fn main() -> anyhow::Result<()> {
             batch_size,
             yes_i_know_what_im_doing,
         }) => {
-            let three_months_ago = Utc::now()
-                .checked_sub_months(Months::new(3))
+            let ninety_days_ago = Utc::now()
+                .checked_sub_signed(Duration::days(90))
                 .expect("date arithmetic overflow");
-            if older_than >= three_months_ago {
+            if older_than >= ninety_days_ago {
                 eprintln!(
-                    "Warning: pruning messages newer than {} (3 months ago) can be unsafe.",
-                    three_months_ago.to_rfc3339()
+                    "Warning: pruning messages newer than {} (90 days ago) can be unsafe.",
+                    ninety_days_ago.to_rfc3339()
                 );
             }
 
