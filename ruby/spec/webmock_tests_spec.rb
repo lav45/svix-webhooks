@@ -36,7 +36,7 @@ describe "API Client" do
 
     svx.message_attempt.list_by_endpoint("app_id", "endpoint_id", {tag: "#"})
 
-    expect(WebMock).to(have_requested(:get, "#{host}/api/v1/app/app_id/attempt/endpoint/endpoint_id?expanded_statuses=true&tag=%23"))
+    expect(WebMock).to(have_requested(:get, "#{host}/api/v1/app/app_id/attempt/endpoint/endpoint_id?expanded_statuses=true&with_content=false&tag=%23"))
   end
 
   it "test Date in query param" do
@@ -52,7 +52,7 @@ describe "API Client" do
     expect(WebMock).to(
       have_requested(
         :get,
-        "#{host}/api/v1/app/app_id/attempt/endpoint/endpoint_id?expanded_statuses=true&tag=%23&before=2025-02-26T20%3A35%3A43%2B00%3A00"
+        "#{host}/api/v1/app/app_id/attempt/endpoint/endpoint_id?expanded_statuses=true&with_content=false&tag=%23&before=2025-02-26T20%3A35%3A43%2B00%3A00"
       )
     )
   end
@@ -89,7 +89,7 @@ describe "API Client" do
     expect(WebMock).to(
       have_requested(
         :get,
-        "#{host}/api/v1/app/app_id/attempt/endpoint/endpoint_id?expanded_statuses=true"
+        "#{host}/api/v1/app/app_id/attempt/endpoint/endpoint_id?expanded_statuses=true&with_content=false"
       )
     )
   end
@@ -106,7 +106,7 @@ describe "API Client" do
     expect(WebMock).to(
       have_requested(
         :get,
-        "#{host}/api/v1/app/app_id/attempt/endpoint/endpoint_id?expanded_statuses=true"
+        "#{host}/api/v1/app/app_id/attempt/endpoint/endpoint_id?expanded_statuses=true&with_content=false"
       )
     )
   end
@@ -141,13 +141,14 @@ describe "API Client" do
     expect(WebMock).to(
       have_requested(
         :get,
-        "#{host}/api/v1/app/app_id/msg?event_types=val1%2Cval5%2Cval8"
+        "#{host}/api/v1/app/app_id/msg?event_types=val1%2Cval5%2Cval8&with_content=false"
       )
     )
   end
 
   it "test header param sent" do
     stub_request(:post, "#{host}/api/v1/app/app_id/msg")
+      .with(query: hash_including({}))
       .to_return(
         status: 200,
         body: MessageOut_JSON
@@ -157,7 +158,7 @@ describe "API Client" do
     expect(WebMock).to(
       have_requested(
         :post,
-        "#{host}/api/v1/app/app_id/msg"
+        "#{host}/api/v1/app/app_id/msg?with_content=false"
       )
         .with(
           headers: {
@@ -192,7 +193,7 @@ describe "API Client" do
         body: ListResponseOperationalWebhookEndpointOut_JSON
       )
 
-    svx.operational_webhook_endpoint.list
+    svx.operational_webhook.endpoint.list
 
     expect(WebMock).to(
       have_requested(
@@ -276,6 +277,24 @@ describe "API Client" do
       )
         .with(body: "{}")
     )
+    # false is an explicit value for non-nullable booleans
+    svx.endpoint.patch("app_id", "endpoint_id", Svix::EndpointPatch.new(disabled: false))
+    expect(WebMock).to(
+      have_requested(
+        :patch,
+        "#{host}/api/v1/app/app_id/endpoint/endpoint_id"
+      )
+        .with(body: "{\"disabled\":false}")
+    )
+    # Ruby considers an empty string truthy, so it can clear a description.
+    svx.endpoint.patch("app_id", "endpoint_id", Svix::EndpointPatch.new(description: ""))
+    expect(WebMock).to(
+      have_requested(
+        :patch,
+        "#{host}/api/v1/app/app_id/endpoint/endpoint_id"
+      )
+        .with(body: "{\"description\":\"\"}")
+    )
     # nullable field set
     svx.endpoint.patch("app_id", "endpoint_id", Svix::EndpointPatch.new(channels: ["ch1", "ch2"]))
     expect(WebMock).to(
@@ -287,8 +306,20 @@ describe "API Client" do
     )
   end
 
+  it "serializes false values in patch models" do
+    expect(Svix::EndpointTransformationPatch.new(enabled: false).serialize)
+      .to(eq({"enabled" => false}))
+    expect(Svix::IngestEndpointTransformationPatch.new(enabled: false).serialize)
+      .to(eq({"enabled" => false}))
+    expect(Svix::EventTypePatch.new(archived: false, deprecated: false).serialize)
+      .to(eq({"archived" => false, "deprecated" => false}))
+    expect(Svix::StreamEventTypePatch.new(archived: false, deprecated: false).serialize)
+      .to(eq({"archived" => false, "deprecated" => false}))
+  end
+
   it "arbitrary json object body" do
     stub_request(:post, "#{host}/api/v1/app/app_id/msg")
+      .with(query: hash_including({}))
       .to_return(
         status: 200,
         body: MessageOut_JSON
@@ -299,7 +330,7 @@ describe "API Client" do
     expect(WebMock).to(
       have_requested(
         :post,
-        "#{host}/api/v1/app/app_id/msg"
+        "#{host}/api/v1/app/app_id/msg?with_content=false"
       )
         .with(body: "{\"payload\":{\"key\":\"val\"}}")
     )
@@ -378,13 +409,6 @@ describe "API Client" do
       uid: source_in.uid
     ))
     expect(loaded_from_json.config.class).to eql(Svix::IngestSourceInConfig::GenericWebhook)
-  end
-
-  it "op webhook body" do
-    json_event = '{"data":{"data":{"appStats":[{"appId":"app_1srOrx2ZWZBpBUvZwXKQmoEYga2","appUid":null,"messageDestinations":343}]},"status":"finished","task":"application.stats","taskId":"qtask_1srOrx2ZWZBpBUvZwXKQmoEYga2"},"type":"background_task.finished"}'
-    loaded_from_json = Svix::BackgroundTaskFinishedEvent.deserialize(JSON.parse(json_event))
-
-    expect(loaded_from_json.to_json).to eql(json_event)
   end
 
   it "application get_or_create" do

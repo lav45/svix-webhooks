@@ -16,22 +16,41 @@ jobs:
     name: Check formatting
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@nightly
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
+          toolchain: nightly
           components: rustfmt
 
       - name: rustfmt
         run: cargo fmt -- --check
 
+  cargo-sort:
+    name: 'Run cargo-sort'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        name: Checkout
+
+      - name: Install cargo sort
+        uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf # v2.85.5
+        with:
+          tool: cargo-sort
+
+      - name: Run cargo sort
+        run: cargo sort --workspace --check --check-format
+
   check-unused-deps:
     name: Check for unused dependencies
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: taiki-e/install-action@cargo-machete
+      - uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf # v2.85.5
+        with:
+          tool: cargo-machete
 
       - run: cargo machete
 
@@ -40,16 +59,17 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       matrix:
-        rust: ["1.91.1", stable, beta]
+        rust: ["1.95", stable, beta]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: dtolnay/rust-toolchain@master
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
         with:
           toolchain: ${{ matrix.rust }}
           components: clippy
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: "bridge -> target"
           # only save the cache on the main branch
@@ -58,7 +78,9 @@ jobs:
           # include relevant information in the cache name
           prefix-key: "bridge-${{ matrix.rust }}"
 
-      - uses: taiki-e/install-action@nextest
+      - uses: taiki-e/install-action@6a1bd70eaac3c8bdf093356838d7ee09fda951cf # v2.85.5
+        with:
+          tool: nextest
 
       - name: Clippy
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
@@ -73,6 +95,15 @@ jobs:
             libssl-dev=* \
             pkg-config=1.8.* \
             zlib1g-dev=1:*
+
+      - name: Build (no features)
+        run: cargo check --no-default-features
+
+      - name: Build (all features)
+        run: cargo check --all-features
+
+      - name: Build (default features)
+        run: cargo check
 
       - name: Start required services
         run: docker compose -f "testing-docker-compose.yml" up -d

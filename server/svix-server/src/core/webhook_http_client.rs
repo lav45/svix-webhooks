@@ -32,11 +32,11 @@ use hyper_util::{
     },
     rt::{TokioExecutor, TokioIo},
 };
-use ipnet::IpNet;
+use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use openssl::ssl::{SslConnector, SslConnectorBuilder, SslMethod, SslVerifyMode};
 use serde::Serialize;
 use thiserror::Error;
-use tokio::{net::TcpStream, sync::Mutex};
+use tokio::{net::TcpStream, sync::OnceCell};
 use tower::Service;
 
 use crate::{
@@ -143,19 +143,10 @@ impl WebhookClient {
         retry: bool,
     ) -> BoxFuture<'_, Result<Response<Incoming>, Error>> {
         async move {
-            let org_req = request.clone();
-            if let Some(auth) = request.uri.authority() {
-                if let Ok(ip) = auth.host().parse::<IpAddr>() {
-                    if !is_allowed(ip)
-                        && !self
-                            .whitelist_nets
-                            .iter()
-                            .any(|subnet| subnet.contains(&ip))
-                    {
-                        return Err(Error::BlockedIp);
-                    }
-                }
+            if request.blocked_ip(self.whitelist_nets.as_slice()) {
+                return Err(Error::BlockedIp);
             }
+            let org_req = request.clone();
 
             let mut req = if let Some(body) = request.body {
                 hyper::Request::builder()
@@ -217,6 +208,33 @@ pub struct Request {
     version: Version,
 }
 
+impl Request {
+    pub fn blocked_ip<'a>(&self, whitelisted_subnets: impl IntoIterator<Item = &'a IpNet>) -> bool {
+        let Some(auth) = self.uri.authority() else {
+            return false;
+        };
+
+        let host = auth.host();
+        // the host may be an IP address surrounded by "[" and "]"
+        let host = host
+            .strip_prefix('[')
+            .and_then(|r| r.strip_suffix(']'))
+            .unwrap_or(host);
+
+        // if it's IPv6, the host may have a % followed by a scope identifier
+        let host = host.split_once('%').map(|(i, _)| i).unwrap_or(host);
+
+        let Ok(ip) = host.parse::<IpAddr>() else {
+            return false;
+        };
+
+        !is_allowed(ip)
+            && !whitelisted_subnets
+                .into_iter()
+                .any(|subnet| subnet.contains(&ip))
+    }
+}
+
 pub struct RequestBuilder {
     method: Option<Method>,
     uri: Option<Uri>,
@@ -271,6 +289,31 @@ fn decode_or_log(s: &str) -> String {
         })
 }
 
+#[derive(Debug)]
+/// A wrapper to unify the errors from the `uri` and `url` parsers
+pub enum UriError {
+    Uri(http::uri::InvalidUri),
+    Url(url::ParseError),
+}
+
+impl std::error::Error for UriError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match self {
+            Self::Uri(s) => s,
+            Self::Url(s) => s,
+        })
+    }
+}
+
+impl std::fmt::Display for UriError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Uri(s) => s.fmt(f),
+            Self::Url(s) => s.fmt(f),
+        }
+    }
+}
+
 impl RequestBuilder {
     pub fn new() -> Self {
         Self {
@@ -293,7 +336,7 @@ impl RequestBuilder {
         self
     }
 
-    pub fn uri(mut self, uri: url::Url) -> Self {
+    pub fn uri(mut self, uri: url::Url) -> Result<Self, UriError> {
         let basic_auth = if uri.password().is_some() || !uri.username().is_empty() {
             let username = decode_or_log(uri.username());
             let password = uri.password().map(decode_or_log).unwrap_or_default();
@@ -310,15 +353,16 @@ impl RequestBuilder {
         };
         self.basic_auth = basic_auth;
 
-        let uri =
-            Uri::from_str(uri.as_str()).expect("If it's a valid url::Url, it's also a valid Uri");
+        // the URL and URI errors aren't actually compatible, and some things valid in one
+        // will not be valid in the other
+        let uri = Uri::from_str(uri.as_str()).map_err(UriError::Uri)?;
         self.uri = Some(uri);
-        self
+        Ok(self)
     }
 
-    pub fn uri_str(self, uri: &str) -> Result<Self, url::ParseError> {
-        let uri = url::Url::from_str(uri)?;
-        Ok(self.uri(uri))
+    pub fn uri_str(self, uri: &str) -> Result<Self, UriError> {
+        let uri = url::Url::from_str(uri).map_err(UriError::Url)?;
+        self.uri(uri)
     }
 
     fn build_headers(
@@ -561,21 +605,15 @@ type NonLocalHttpConnector = HttpConnector<NonLocalDnsResolver>;
 /// Specific private subnets or domain names may be whitelisted.
 #[derive(Clone, Debug)]
 struct NonLocalDnsResolver {
-    state: Arc<Mutex<DnsState>>,
+    resolver: Arc<OnceCell<TokioResolver>>,
     whitelist_nets: Arc<Vec<IpNet>>,
     whitelist_names: Arc<Vec<String>>,
-}
-
-#[derive(Clone, Debug)]
-enum DnsState {
-    Init,
-    Ready(Arc<TokioResolver>),
 }
 
 impl NonLocalDnsResolver {
     pub fn new(whitelist_nets: Arc<Vec<IpNet>>, whitelist_names: Arc<Vec<String>>) -> Self {
         NonLocalDnsResolver {
-            state: Arc::new(Mutex::new(DnsState::Init)),
+            resolver: Arc::new(OnceCell::new()),
             whitelist_nets,
             whitelist_names,
         }
@@ -592,24 +630,12 @@ impl Service<Name> for NonLocalDnsResolver {
     }
 
     fn call(&mut self, name: Name) -> Self::Future {
-        let resolver = self.clone();
+        let this = self.clone();
         let whitelist_nets = self.whitelist_nets.clone();
         let whitelist_names = self.whitelist_names.clone();
 
         Box::pin(async move {
-            let mut lock = resolver.state.lock().await;
-
-            let resolver = match &*lock {
-                DnsState::Init => {
-                    let resolver = new_resolver().await?;
-                    *lock = DnsState::Ready(resolver.clone());
-                    resolver
-                }
-
-                DnsState::Ready(resolver) => resolver.clone(),
-            };
-
-            drop(lock);
+            let resolver = this.resolver.get_or_try_init(new_resolver).await?;
 
             let whitelisted_name = whitelist_names
                 .iter()
@@ -653,64 +679,122 @@ impl Iterator for SocketAddrs {
     }
 }
 
-async fn new_resolver() -> Result<Arc<TokioResolver>, NetError> {
-    let mut builder = Resolver::builder_tokio()?;
-    builder.options_mut().ip_strategy = hickory_resolver::config::LookupIpStrategy::Ipv4thenIpv6;
-    Ok(Arc::new(builder.build()?))
+async fn new_resolver() -> Result<TokioResolver, NetError> {
+    tokio::task::spawn_blocking(|| {
+        let mut builder = Resolver::builder_tokio()?;
+        builder.options_mut().ip_strategy =
+            hickory_resolver::config::LookupIpStrategy::Ipv4thenIpv6;
+        builder.build()
+    })
+    .await
+    .unwrap_or_else(|e| std::panic::resume_unwind(e.into_panic()))
 }
 
-fn is_allowed(addr: IpAddr) -> bool {
+pub fn is_allowed(addr: IpAddr) -> bool {
     match addr.to_canonical() {
         IpAddr::V4(addr) => {
-            !addr.is_private()
-                && !addr.is_loopback()
-                && !addr.is_link_local()
-                && !addr.is_broadcast()
-                && !addr.is_documentation()
-                && !is_shared(addr)
-                && !is_reserved(addr)
-                && !is_benchmarking(addr)
-                && !starts_with_zero(addr)
+            !(addr.is_private()
+                || addr.is_loopback()
+                || addr.is_link_local()
+                || addr.is_broadcast()
+                || addr.is_multicast()
+                || addr.is_documentation()
+                || is_shared(addr)
+                || is_reserved(addr)
+                || is_benchmarking(addr)
+                || starts_with_zero(addr))
         }
         IpAddr::V6(addr) => {
-            !addr.is_multicast()
-                && !addr.is_loopback()
-                && !is_unicast_link_local(addr)
-                && !is_unique_local(addr)
-                && !addr.is_unspecified()
-                && !is_documentation_v6(addr)
+            !(addr.is_multicast()
+                || addr.is_loopback()
+                || addr.is_unspecified()
+                || is_unicast_link_local(addr)
+                || is_unique_local(addr)
+                || is_documentation_v6(addr)
+                || is_discard_v6(addr)
+                || is_6to4_or_nat64_v6(addr)
+                || is_srv6(addr))
         }
     }
 }
 
-/// Util functions copied from the unstable standard library near identically
+#[inline(always)]
 fn is_shared(addr: Ipv4Addr) -> bool {
-    addr.octets()[0] == 100 && (addr.octets()[1] & 0b1100_0000 == 0b0100_0000)
+    static CGNAT: Ipv4Net = Ipv4Net::new_assert(Ipv4Addr::new(100, 64, 0, 0), 10);
+
+    CGNAT.contains(&addr)
 }
 
+#[inline(always)]
 fn is_reserved(addr: Ipv4Addr) -> bool {
-    (addr.octets()[0] == 192 && addr.octets()[1] == 0 && addr.octets()[2] == 0)
-        || (addr.octets()[0] & 240 == 240 && !addr.is_broadcast())
+    static IETF_RESERVED_1: Ipv4Net = Ipv4Net::new_assert(Ipv4Addr::new(192, 0, 0, 0), 24);
+    static IETF_RESERVED_2: Ipv4Net = Ipv4Net::new_assert(Ipv4Addr::new(192, 88, 99, 0), 24);
+    static CLASS_E: Ipv4Net = Ipv4Net::new_assert(Ipv4Addr::new(240, 0, 0, 0), 4);
+
+    // note: revisit allowing class E addresses in the future when ipocalypse gets more dire
+
+    IETF_RESERVED_1.contains(&addr) || IETF_RESERVED_2.contains(&addr) || CLASS_E.contains(&addr)
 }
 
+#[inline(always)]
 fn is_benchmarking(addr: Ipv4Addr) -> bool {
-    addr.octets()[0] == 198 && (addr.octets()[1] & 0xfe) == 18
+    static BENCHMARKING: Ipv4Net = Ipv4Net::new_assert(Ipv4Addr::new(198, 18, 0, 0), 15);
+
+    BENCHMARKING.contains(&addr)
 }
 
+#[inline(always)]
 fn starts_with_zero(addr: Ipv4Addr) -> bool {
     addr.octets()[0] == 0
 }
 
+#[inline(always)]
 fn is_unicast_link_local(addr: Ipv6Addr) -> bool {
-    (addr.segments()[0] & 0xffc0) == 0xfe80
+    // technically only fe80::/64 are link-local, but fe80::/10 are all reserved for it
+    static V6_LL: Ipv6Net = Ipv6Net::new_assert(Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 0), 10);
+
+    V6_LL.contains(&addr)
 }
 
+#[inline(always)]
 fn is_unique_local(addr: Ipv6Addr) -> bool {
-    (addr.segments()[0] & 0xfe00) == 0xfc00
+    static ULA: Ipv6Net = Ipv6Net::new_assert(Ipv6Addr::new(0xfc00, 0, 0, 0, 0, 0, 0, 0), 7);
+
+    ULA.contains(&addr)
 }
 
+#[inline(always)]
 fn is_documentation_v6(addr: Ipv6Addr) -> bool {
-    (addr.segments()[0] == 0x2001) && (addr.segments()[1] == 0xdb8)
+    static V6_DOCUMENTATION_1: Ipv6Net =
+        Ipv6Net::new_assert(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 0), 32);
+    static V6_DOCUMENTATION_2: Ipv6Net =
+        Ipv6Net::new_assert(Ipv6Addr::new(0x3fff, 0, 0, 0, 0, 0, 0, 0), 20);
+
+    V6_DOCUMENTATION_1.contains(&addr) || V6_DOCUMENTATION_2.contains(&addr)
+}
+
+#[inline(always)]
+fn is_discard_v6(addr: Ipv6Addr) -> bool {
+    static V6_DISCARD: Ipv6Net = Ipv6Net::new_assert(Ipv6Addr::new(0x100, 0, 0, 0, 0, 0, 0, 0), 64);
+
+    V6_DISCARD.contains(&addr)
+}
+
+#[inline(always)]
+fn is_6to4_or_nat64_v6(addr: Ipv6Addr) -> bool {
+    static IP6TO4: Ipv6Net = Ipv6Net::new_assert(Ipv6Addr::new(0x2002, 0, 0, 0, 0, 0, 0, 0), 16);
+    static NAT64: Ipv6Net = Ipv6Net::new_assert(Ipv6Addr::new(0x64, 0xff9b, 0, 0, 0, 0, 0, 0), 96);
+    static LOCAL_NAT64: Ipv6Net =
+        Ipv6Net::new_assert(Ipv6Addr::new(0x64, 0xff9b, 0x1, 0, 0, 0, 0, 0), 48);
+
+    IP6TO4.contains(&addr) || NAT64.contains(&addr) || LOCAL_NAT64.contains(&addr)
+}
+
+#[inline(always)]
+fn is_srv6(addr: Ipv6Addr) -> bool {
+    static SRV6: Ipv6Net = Ipv6Net::new_assert(Ipv6Addr::new(0x5f00, 0, 0, 0, 0, 0, 0, 0), 16);
+
+    SRV6.contains(&addr)
 }
 
 #[cfg(test)]
@@ -718,7 +802,6 @@ mod tests {
     use std::{
         net::{IpAddr, TcpListener},
         path::PathBuf,
-        str::FromStr,
         sync::Arc,
     };
 
@@ -732,35 +815,92 @@ mod tests {
 
     #[test]
     fn is_allowed_test() {
-        // Copied shamelessly from the standard library `is_global` docs
+        // RFC 1918
         assert!(!is_allowed(IpAddr::from([10, 254, 0, 0])));
         assert!(!is_allowed(IpAddr::from([192, 168, 10, 65])));
         assert!(!is_allowed(IpAddr::from([172, 16, 10, 65])));
+        // 0-prefix (mostly unused except for unspec)
         assert!(!is_allowed(IpAddr::from([0, 1, 2, 3])));
+        // unspec
         assert!(!is_allowed(IpAddr::from([0, 0, 0, 0])));
+        // the many faces of loopback
         assert!(!is_allowed(IpAddr::from([127, 0, 0, 1])));
+        assert!(!is_allowed(IpAddr::from([127, 0, 0, 254])));
+        assert!(!is_allowed(IpAddr::from([127, 254, 254, 254])));
+        // link-local
         assert!(!is_allowed(IpAddr::from([169, 254, 45, 1])));
+        // broadcast
         assert!(!is_allowed(IpAddr::from([255, 255, 255, 255])));
-        assert!(!is_allowed(IpAddr::from([192, 0, 2, 255])));
-        assert!(!is_allowed(IpAddr::from([198, 51, 100, 65])));
-        assert!(!is_allowed(IpAddr::from([203, 0, 113, 6])));
-        assert!(!is_allowed(IpAddr::from([100, 100, 0, 0])));
+        // multicast
+        assert!(!is_allowed(IpAddr::from([224, 1, 2, 3])));
+        assert!(!is_allowed(IpAddr::from([233, 252, 0, 16])));
+        // protocol-reserved
         assert!(!is_allowed(IpAddr::from([192, 0, 0, 0])));
         assert!(!is_allowed(IpAddr::from([192, 0, 0, 255])));
-        assert!(!is_allowed(IpAddr::from([250, 10, 20, 30])));
+        // TEST-NET-1
+        assert!(!is_allowed(IpAddr::from([192, 0, 2, 255])));
+        // TEST-NET-2
+        assert!(!is_allowed(IpAddr::from([198, 51, 100, 65])));
+        // TEST-NET-3
+        assert!(!is_allowed(IpAddr::from([203, 0, 113, 6])));
+        // CGNAT
+        assert!(!is_allowed(IpAddr::from([100, 100, 0, 0])));
+        // ipv6-ipv4 relay
+        assert!(!is_allowed(IpAddr::from([192, 88, 99, 3])));
+        // benchmarking
         assert!(!is_allowed(IpAddr::from([198, 18, 0, 0])));
+        // class E
+        assert!(!is_allowed(IpAddr::from([240, 240, 240, 240])));
 
         assert!(is_allowed(IpAddr::from([1, 1, 1, 1])));
+        assert!(is_allowed(IpAddr::from([8, 8, 8, 8])));
 
-        assert!(!is_allowed(IpAddr::from([0, 0, 0, 0, 0, 0, 0, 0x1])));
-
-        assert!(is_allowed(IpAddr::from([0, 0, 0, 0xffff, 0, 0, 0, 0x1])));
+        assert!(!is_allowed("::0".parse::<IpAddr>().unwrap()));
+        assert!(!is_allowed("::1".parse::<IpAddr>().unwrap()));
         assert!(is_allowed(
             "2001:4860:4860::8888".parse::<IpAddr>().unwrap()
         ));
         assert!(is_allowed("::ffff:8.8.8.8".parse::<IpAddr>().unwrap()));
         assert!(!is_allowed("::ffff:127.0.0.1".parse::<IpAddr>().unwrap()));
         assert!(!is_allowed("::ffff:0.0.0.1".parse::<IpAddr>().unwrap()));
+        // documentatiion
+        assert!(!is_allowed("2001:db8::1".parse::<IpAddr>().unwrap()));
+        // documentation
+        assert!(!is_allowed("3fff::dead:beef".parse::<IpAddr>().unwrap()));
+        // link-local
+        assert!(!is_allowed("fe80::dead:beef".parse::<IpAddr>().unwrap()));
+        // from fe80::/10, but not in the link-local space of fe80::/64
+        assert!(!is_allowed(
+            "febf:ffff::dead:beef".parse::<IpAddr>().unwrap()
+        ));
+        // ula
+        assert!(!is_allowed(
+            "fdee:3A45:9057::0001".parse::<IpAddr>().unwrap()
+        ));
+        // tailscale's ULA allocation
+        assert!(!is_allowed("fd7a:115c:a1e0::1".parse::<IpAddr>().unwrap()));
+        // 6to4 encoding of a legitimate IPv4 public address
+        assert!(!is_allowed(
+            "2002:c000:0204::dead:beef".parse::<IpAddr>().unwrap()
+        ));
+        // 6to4 encoding of a IPv4 private address
+        assert!(!is_allowed(
+            "2002:c0a8:0001::dead:beef".parse::<IpAddr>().unwrap()
+        ));
+        // NAT64 encoding of a private address
+        assert!(!is_allowed("64:ff9b::c0a8:0".parse::<IpAddr>().unwrap()));
+        // NAT64 encoding of a public address
+        assert!(!is_allowed("64:ff9b::808:808".parse::<IpAddr>().unwrap()));
+        // NAT64 encoding of a private address
+        assert!(!is_allowed("64:ff9b::c0a8:0000".parse::<IpAddr>().unwrap()));
+        // SRv6
+        assert!(!is_allowed("5f00::dead:beef".parse::<IpAddr>().unwrap()));
+        // local NAT
+        assert!(!is_allowed(
+            "64:ff9b:1::dead:beef".parse::<IpAddr>().unwrap()
+        ));
+        // discard address
+        assert!(!is_allowed("100::1:2:3:4".parse::<IpAddr>().unwrap()));
     }
 
     #[test]
@@ -779,7 +919,8 @@ mod tests {
 
         assert!(
             RequestBuilder::new()
-                .uri(url::Url::from_str("http://127.0.0.1/").unwrap())
+                .uri_str("http://127.0.0.1/")
+                .unwrap()
                 .version(Version::HTTP_11)
                 .build()
                 .is_ok()
@@ -793,7 +934,8 @@ mod tests {
             .unwrap();
 
         let req = RequestBuilder::new()
-            .uri(url::Url::from_str("http://127.0.0.1/").unwrap())
+            .uri_str("http://127.0.0.1/")
+            .unwrap()
             .version(Version::HTTP_11)
             .headers(hdrs)
             .build()
@@ -815,7 +957,8 @@ mod tests {
     #[test]
     fn test_url_basic_auth() {
         let req = RequestBuilder::new()
-            .uri(url::Url::from_str("http://test:123@127.0.0.1/").unwrap())
+            .uri_str("http://test:123@127.0.0.1/")
+            .unwrap()
             .version(Version::HTTP_11)
             .build()
             .unwrap();
@@ -823,7 +966,8 @@ mod tests {
         assert_eq!(req.headers[&AUTHORIZATION], "Basic dGVzdDoxMjM=".as_bytes());
 
         let req_user_only = RequestBuilder::new()
-            .uri(url::Url::from_str("http://test:@127.0.0.1/").unwrap())
+            .uri_str("http://test:@127.0.0.1/")
+            .unwrap()
             .version(Version::HTTP_11)
             .build()
             .unwrap();
@@ -834,7 +978,8 @@ mod tests {
         );
 
         let req_pass_only = RequestBuilder::new()
-            .uri(url::Url::from_str("http://:123@127.0.0.1/").unwrap())
+            .uri_str("http://:123@127.0.0.1/")
+            .unwrap()
             .version(Version::HTTP_11)
             .build()
             .unwrap();
@@ -845,7 +990,8 @@ mod tests {
         );
 
         let req_no_basic_auth = RequestBuilder::new()
-            .uri(url::Url::from_str("http://127.0.0.1/").unwrap())
+            .uri_str("http://127.0.0.1/")
+            .unwrap()
             .version(Version::HTTP_11)
             .build()
             .unwrap();
@@ -853,7 +999,8 @@ mod tests {
         assert!(req_no_basic_auth.headers.get("authorization").is_none());
 
         let req_special_chars = RequestBuilder::new()
-            .uri(url::Url::from_str("http://test==:123==@127.0.0.1/").unwrap())
+            .uri_str("http://test==:123==@127.0.0.1/")
+            .unwrap()
             .version(Version::HTTP_11)
             .build()
             .unwrap();
@@ -867,7 +1014,8 @@ mod tests {
     #[test]
     fn test_host_header() {
         let req = RequestBuilder::new()
-            .uri(url::Url::from_str("http://127.0.0.1/").unwrap())
+            .uri_str("http://127.0.0.1/")
+            .unwrap()
             .version(Version::HTTP_11)
             .build()
             .unwrap();
@@ -875,7 +1023,8 @@ mod tests {
         assert_eq!(req.headers.get("host").unwrap(), "127.0.0.1".as_bytes());
 
         let req_with_port = RequestBuilder::new()
-            .uri(url::Url::from_str("http://127.0.0.1:8000/").unwrap())
+            .uri_str("http://127.0.0.1:8000/")
+            .unwrap()
             .version(Version::HTTP_11)
             .build()
             .unwrap();
@@ -941,5 +1090,45 @@ mod tests {
         // And assert that when the flag is enabled, that it will succeed
         let whc_without_validation = WebhookClient::new(Some(whitelist), None, true, None);
         assert!(whc_without_validation.execute(request).await.is_ok());
+    }
+
+    macro_rules! assert_should_be_blocked {
+        ($url:tt, $expected:literal) => {
+            let request = RequestBuilder::new()
+                .method(Method::GET)
+                .uri_str($url)
+                .expect("URL should parse")
+                .version(Version::HTTP_2)
+                .build()
+                .expect("builder should... build...");
+            assert_eq!(request.blocked_ip(&[]), $expected);
+        };
+    }
+
+    #[test]
+    fn test_blocked_ip() {
+        assert_should_be_blocked!("https://127.0.0.1", true);
+        assert_should_be_blocked!("https://8.8.8.8", false);
+        assert_should_be_blocked!("https://[::1]", true);
+        assert_should_be_blocked!("https://[::1]:9876", true);
+        assert_should_be_blocked!("https://@[::1]:9876", true);
+        assert_should_be_blocked!("https://1:2@[::1]:9876", true);
+        assert_should_be_blocked!(
+            "https://[0000:0000:0000:0000:0000:ffff:7f00:0001]:9854",
+            true
+        );
+        // there are a couple of edge-cases that we don't test here because the `url`
+        // crate can't parse them; the next test is making sure they they still aren't parsed
+        // if the `url` crate ever adds support for bracked IPv4 literals or IPv6 literals
+        // with scopes, make sure to add tests here
+    }
+
+    #[test]
+    fn test_url_does_not_parse_some_edge_cases() {
+        assert_matches::assert_matches!(url::Url::try_from("https://[127.0.0.1]"), Err(_));
+        assert_matches::assert_matches!(url::Url::try_from("https://[::1%lo]"), Err(_));
+        // this one is technically illegal, but some (permissive) libraries allow
+        // it
+        assert_matches::assert_matches!(url::Url::try_from("https://::1"), Err(_));
     }
 }

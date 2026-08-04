@@ -17,9 +17,9 @@ jobs:
         working-directory: javascript
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 'latest'
           registry-url: 'https://registry.npmjs.org'
@@ -31,4 +31,13 @@ jobs:
 
       - name: Publish
         run: |
-          npm publish
+          version="$(node -p 'require("./package.json").version')"
+          # A semver prerelease (anything with a `-`) must not become the default
+          # `npm install svix`; publish it under the `next` dist-tag instead.
+          if [[ "$version" == *-* ]]; then
+            tag=next
+          else
+            tag=latest
+          fi
+          echo "Publishing svix@$version with dist-tag '$tag'"
+          npm publish --tag "$tag"

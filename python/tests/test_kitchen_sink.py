@@ -29,7 +29,7 @@ def test_endpoint_crud(client) -> None:
     if client is None:
         # the version of pytest that works with python < 3.10 has a bug in its type
         # annotations that reports pytest.skip() as taking 0 arguments
-        pytest.skip("$SVIX_TOKEN and $SVIX_SERVER_URL must be set to run this test")  # ty: ignore[too-many-positional-arguments]
+        pytest.skip("$SVIX_TOKEN and $SVIX_SERVER_URL must be set to run this test")  # ty: ignore[too-many-positional-arguments,unused-ignore-comment,unused-ignore-comment]
     app = client.application.create(ApplicationIn(name="app"))
     try:
         client.event_type.create(
@@ -49,10 +49,10 @@ def test_endpoint_crud(client) -> None:
     )
     assert {s for s in ep.channels} == {"ch0", "ch1"}
     ep_patched = client.endpoint.patch(
-        app.id, ep.id, EndpointPatch(filter_types=["event.started", "event.ended"])
+        app.id, ep.id, EndpointPatch(event_types=["event.started", "event.ended"])
     )
     assert {s for s in ep_patched.channels} == {"ch0", "ch1"}
-    assert {s for s in ep_patched.filter_types} == {"event.started", "event.ended"}
+    assert {s for s in ep_patched.event_types} == {"event.started", "event.ended"}
 
     # Should succeed without error if the deserialization handles empty response bodies
     # correctly

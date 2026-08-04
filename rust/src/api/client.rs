@@ -1,14 +1,19 @@
 use std::{sync::Arc, time::Duration};
 
+use hyper::body::Bytes;
 use hyper_util::{client::legacy::Client as HyperClient, rt::TokioExecutor};
 
-use crate::Configuration;
+use crate::connector::{make_connector, Connector};
 
 const CRATE_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub struct SvixOptions {
     pub debug: bool,
 
+    /// Base URL of the Svix API server.
+    ///
+    /// Trailing slashes are stripped, so `https://api.svix.com/` and
+    /// `https://api.svix.com` are equivalent.
     pub server_url: Option<String>,
 
     /// Timeout for HTTP requests.
@@ -56,6 +61,16 @@ impl Default for SvixOptions {
     }
 }
 
+pub(crate) struct Configuration {
+    pub base_path: String,
+    pub user_agent: Option<String>,
+    pub bearer_access_token: Option<String>,
+    pub timeout: Option<Duration>,
+    pub num_retries: u32,
+    pub retry_schedule: Option<Vec<Duration>>,
+    pub client: HyperClient<Connector, http_body_util::Full<Bytes>>,
+}
+
 /// Svix API client.
 #[derive(Clone)]
 pub struct Svix {
@@ -85,7 +100,7 @@ impl Svix {
         let cfg = Arc::new(Configuration {
             user_agent: Some(user_agent_fields.join(" ")),
             client: HyperClient::builder(TokioExecutor::new())
-                .build(crate::make_connector(options.proxy_address)),
+                .build(make_connector(options.proxy_address)),
             timeout: options.timeout,
             // These fields will be set by `with_token` below
             base_path: String::new(),
@@ -95,7 +110,9 @@ impl Svix {
         });
         let svix = Self {
             cfg,
-            server_url: options.server_url,
+            server_url: options
+                .server_url
+                .map(|url| url.trim_end_matches('/').to_owned()),
         };
         svix.with_token(token)
     }
@@ -134,14 +151,79 @@ impl Svix {
         }
     }
 
-    pub fn cfg(&self) -> &Configuration {
+    pub(crate) fn cfg(&self) -> &Configuration {
         &self.cfg
+    }
+
+    /// Get back the access token used to construct this `Svix` client.
+    pub fn token(&self) -> Option<&str> {
+        self.cfg.bearer_access_token.as_deref()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::api::Svix;
+    use crate::api::{Svix, SvixOptions};
+
+    fn base_path(server_url: &str) -> String {
+        let svix = Svix::new(
+            "token".to_owned(),
+            Some(SvixOptions {
+                server_url: Some(server_url.to_owned()),
+                ..Default::default()
+            }),
+        );
+        svix.cfg.base_path.clone()
+    }
+
+    #[test]
+    fn test_server_url_trailing_slashes_are_stripped() {
+        assert_eq!(
+            base_path("https://api.example.com/"),
+            "https://api.example.com"
+        );
+        assert_eq!(
+            base_path("https://api.example.com///"),
+            "https://api.example.com"
+        );
+        assert_eq!(
+            base_path("https://api.example.com/prefix/"),
+            "https://api.example.com/prefix"
+        );
+    }
+
+    #[test]
+    fn test_server_url_without_trailing_slash_is_unchanged() {
+        assert_eq!(
+            base_path("https://api.example.com"),
+            "https://api.example.com"
+        );
+    }
+
+    #[test]
+    fn test_default_server_url() {
+        let svix = Svix::new("token".to_owned(), None);
+        assert_eq!(svix.cfg.base_path, "https://api.svix.com");
+    }
+
+    #[test]
+    fn test_regional_server_url() {
+        let svix = Svix::new("token.eu".to_owned(), None);
+        assert_eq!(svix.cfg.base_path, "https://api.eu.svix.com");
+    }
+
+    #[test]
+    fn test_with_token_keeps_normalized_server_url() {
+        let svix = Svix::new(
+            "token".to_owned(),
+            Some(SvixOptions {
+                server_url: Some("https://api.example.com/".to_owned()),
+                ..Default::default()
+            }),
+        )
+        .with_token("token2".to_owned());
+        assert_eq!(svix.cfg.base_path, "https://api.example.com");
+    }
 
     #[test]
     fn test_future_send_sync() {
@@ -156,8 +238,10 @@ mod tests {
     #[test]
     fn test_user_agent() {
         let svix = Svix::new(String::new(), None);
-        let re =
-            regex::Regex::new(r"^svix-libs/[0-9.]+/rust rust/1\.[0-9.]+ [^ ]+/[^ ]+$").unwrap();
+        let re = regex::Regex::new(
+            r"^svix-libs/[0-9.]+(-[a-z]+.[0-9]+)?/rust rust/1\.[0-9.]+ [^ ]+/[^ ]+$",
+        )
+        .unwrap();
         let ua = svix
             .cfg
             .user_agent
