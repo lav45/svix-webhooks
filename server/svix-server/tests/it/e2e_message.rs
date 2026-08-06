@@ -380,7 +380,7 @@ async fn test_failed_message_gets_requeued() {
 }
 
 #[tokio::test]
-async fn test_payload_retention_period() {
+async fn test_prune_retention_period() {
     let (client, _jh) = start_svix_server().await;
     dotenvy::dotenv().ok();
     let cfg = svix_server::cfg::load().expect("Error loading configuration");
@@ -418,7 +418,7 @@ async fn test_payload_retention_period() {
         .unwrap();
     assert_eq!(1, res.rows_affected);
 
-    expired_message_cleaner::clean_expired_messages(&pool, 5000, false)
+    expired_message_cleaner::clean_expired_messages(&pool, 5000, Utc::now() - Duration::days(90))
         .await
         .unwrap();
 
@@ -430,7 +430,7 @@ async fn test_payload_retention_period() {
 }
 
 #[tokio::test]
-async fn test_payload_retention_period_messagecontent() {
+async fn test_prune_retention_period_messagecontent() {
     let (client, _jh) = start_svix_server().await;
     dotenvy::dotenv().ok();
     let cfg = svix_server::cfg::load().expect("Error loading configuration");
@@ -448,7 +448,7 @@ async fn test_payload_retention_period_messagecontent() {
             json!({
                 "eventType": "test.event",
                 "payload": { "test": "value" },
-                "payloadRetentionPeriod": custom_retention_period
+                "pruneRetentionPeriod": custom_retention_period
             }),
             StatusCode::ACCEPTED,
         )
@@ -463,6 +463,44 @@ async fn test_payload_retention_period_messagecontent() {
         .unwrap();
 
     let expected = Utc::now() + Duration::days(custom_retention_period) + Duration::hours(1);
+    let actual: chrono::DateTime<Utc> = content.expiration.into();
+
+    assert!(actual < expected);
+}
+
+#[tokio::test]
+async fn test_prune_retention_period_legacy_field_name() {
+    let (client, _jh) = start_svix_server().await;
+    dotenvy::dotenv().ok();
+    let cfg = svix_server::cfg::load().expect("Error loading configuration");
+    let pool = svix_server::db::init_db(&cfg).await;
+
+    let app_id = create_test_app(&client, "test-legacy-retention-field")
+        .await
+        .unwrap()
+        .id;
+
+    // The old `payloadRetentionPeriod` name must still be accepted for backward compatibility.
+    let msg: MessageOut = client
+        .post(
+            &format!("api/v1/app/{app_id}/msg/"),
+            json!({
+                "eventType": "test.event",
+                "payload": { "test": "value" },
+                "payloadRetentionPeriod": 5
+            }),
+            StatusCode::ACCEPTED,
+        )
+        .await
+        .unwrap();
+
+    let content: messagecontent::Model = messagecontent::Entity::find_by_id(msg.id)
+        .one(&pool)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let expected = Utc::now() + Duration::days(5) + Duration::hours(1);
     let actual: chrono::DateTime<Utc> = content.expiration.into();
 
     assert!(actual < expected);

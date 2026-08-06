@@ -3,12 +3,17 @@
 
 use std::time::{Duration, Instant};
 
+use chrono::Utc;
 use sea_orm::{
-    ConnectionTrait, DatabaseConnection, DbErr, ExecResult, QueryResult, Statement,
-    TransactionTrait, UpdateResult,
+    ConnectionTrait, DatabaseConnection, DbErr, ExecResult, Statement, TransactionTrait,
+    UpdateResult, Value,
 };
 
-use crate::error::{Error, Result};
+use crate::{
+    cfg::Configuration,
+    core::types::{BaseId, MessageId},
+    error::Result,
+};
 
 type DbResult<T> = std::result::Result<T, DbErr>;
 
@@ -23,54 +28,22 @@ async fn exec_without_timeout(pool: &DatabaseConnection, stmt: Statement) -> DbR
     tx.commit().await?;
     Ok(res)
 }
-async fn query_one_without_timeout(
-    pool: &DatabaseConnection,
-    stmt: Statement,
-) -> DbResult<Option<QueryResult>> {
-    let increase_timeout = Statement::from_string(
-        pool.get_database_backend(),
-        "SET LOCAL statement_timeout=0;",
-    );
-    let tx = pool.begin().await?;
-    let _ = tx.execute(increase_timeout).await?;
-    let res = tx.query_one(stmt).await?;
-    tx.commit().await?;
-    Ok(res)
-}
 
-/// Nullifies the payload column for expired messages,
-/// `limit` sets how many rows to update at a time.
+/// Deletes `messagecontent` rows whose own `expiration` (settable per-message via the API's
+/// `pruneRetentionPeriod`) has passed, and permanently prunes `messageattempt` and `message`
+/// rows older than `older_than`. `limit` sets how many rows to delete at a time, per query.
 pub async fn clean_expired_messages(
     pool: &DatabaseConnection,
-    limit: u32,
-    enable_legacy_message_cleaner: bool,
+    limit: i32,
+    older_than: chrono::DateTime<Utc>,
 ) -> DbResult<UpdateResult> {
-    // See the docs for [`has_message_payloads_pending_expiry`] for background on the legacy cleaner.
-    let legacy_row_count = if enable_legacy_message_cleaner {
-        let legacy_res = {
-            let legacy_stmt = Statement::from_sql_and_values(
-                pool.get_database_backend(),
-                r#"
-        UPDATE message SET payload = NULL WHERE id IN (
-            SELECT id FROM message
-            WHERE
-                expiration <= now()
-                AND payload IS NOT NULL
-            LIMIT $1
-            FOR UPDATE SKIP LOCKED
-        )
-    "#,
-                [limit.into()],
-            );
+    let batch_limit: Value = limit.into();
 
-            exec_without_timeout(pool, legacy_stmt).await?
-        };
-        legacy_res.rows_affected()
-    } else {
-        0
-    };
-
-    let stmt = Statement::from_sql_and_values(
+    // `messagecontent` has no FK/cascade tying it to `message`, so it must clean itself up
+    // purely based on its own `expiration` - it cannot assume the row-pruning queries below
+    // will ever delete it (their cutoff is independent and can easily lag behind, or run
+    // ahead of, a given message's own expiration).
+    let content_stmt = Statement::from_sql_and_values(
         pool.get_database_backend(),
         r#"
         DELETE FROM messagecontent WHERE id = any(
@@ -83,52 +56,53 @@ pub async fn clean_expired_messages(
             )
         )
     "#,
-        [limit.into()],
+        [batch_limit.clone()],
     );
-    let res = pool.execute(stmt).await?;
+    let expired_content = pool.execute(content_stmt).await?.rows_affected();
+
+    // Permanently prune `messageattempt` and `message` rows older than the retention period.
+    let cutoff: Value = MessageId::start_id(older_than).to_string().into();
+    let attempt_stmt = Statement::from_sql_and_values(
+        pool.get_database_backend(),
+        r#"
+        DELETE FROM messageattempt WHERE id IN (
+            SELECT id FROM messageattempt WHERE msg_id < $1 ORDER BY msg_id LIMIT $2
+        )
+    "#,
+        [cutoff.clone(), batch_limit.clone()],
+    );
+    let pruned_attempts = exec_without_timeout(pool, attempt_stmt).await?.rows_affected();
+
+    let message_stmt = Statement::from_sql_and_values(
+        pool.get_database_backend(),
+        r#"
+        DELETE FROM message WHERE id IN (
+            SELECT id FROM message WHERE id < $1 ORDER BY id LIMIT $2
+        )
+    "#,
+        [cutoff, batch_limit],
+    );
+    let pruned_messages = exec_without_timeout(pool, message_stmt).await?.rows_affected();
 
     Ok(UpdateResult {
-        rows_affected: legacy_row_count + res.rows_affected(),
+        rows_affected: expired_content + pruned_attempts + pruned_messages,
     })
 }
 
-/// Checks to see if the message table has any non-null payloads requiring expiry.
-///
-/// ## Background
-///
-/// Initially payloads were modeled as a field in `message`, but later migrated to a separate
-/// table (`messagecontent`). In cases where there are no longer any payloads to expire in `message` we
-/// can avoid the expense of running the cleaner on the `message` table since all new messages should now be using
-/// `messagecontent`.
-async fn has_message_payloads_pending_expiry(pool: &DatabaseConnection) -> Result<bool> {
-    query_one_without_timeout(
-        pool,
-        Statement::from_string(
-            pool.get_database_backend(),
-            r#"SELECT EXISTS (SELECT 1 FROM message WHERE payload IS NOT NULL LIMIT 1)"#,
-        ),
-    )
-    .await?
-    .ok_or_else(|| Error::generic("failed to check for message payloads"))?
-    .try_get_by_index(0)
-    .map_err(|e| Error::generic(format_args!("failed to check for message payloads: {e}")))
-}
-
-/// Polls the database for expired messages to nullify payloads for.
+/// Polls the database for `messagecontent` rows to delete once their own `expiration` passes,
+/// and for `message`/`messageattempt`/`messagecontent` rows to permanently prune once past the
+/// configured retention period.
 ///
 /// Uses a variable polling schedule, based on affected row counts each iteration of the loop.
-pub async fn expired_message_cleaner_loop(pool: &DatabaseConnection) -> Result<()> {
-    let message_table_needs_cleaning = has_message_payloads_pending_expiry(pool).await?;
-    if !message_table_needs_cleaning {
-        tracing::info!(
-            "No payloads pending expiry found in `message` table. Skipping the cleaner for this table."
-        );
-    }
-
-    // When fewer rows than the batch size have been updated, take a nap for this long.
-    const IDLE: Duration = Duration::from_secs(60 * 60 * 12);
+pub async fn expired_message_cleaner_loop(
+    cfg: &Configuration,
+    pool: &DatabaseConnection,
+) -> Result<()> {
     const ON_ERROR: Duration = Duration::from_secs(10);
-    const BATCH_SIZE: u32 = 5_000;
+    let batch_size = cfg.expired_message_cleaner_batch_size;
+    let retention_period_days = cfg.prune_retention_period_days;
+    // When fewer rows than the batch size have been pruned, take a nap for this long.
+    let idle = Duration::from_secs(cfg.expired_message_cleaner_idle_sleep_secs as u64);
     let mut sleep_time = None;
     while !crate::is_shutting_down() {
         if let Some(duration) = sleep_time {
@@ -141,19 +115,21 @@ pub async fn expired_message_cleaner_loop(pool: &DatabaseConnection) -> Result<(
             }
         }
 
+        let older_than = Utc::now() - chrono::Duration::days(retention_period_days.into());
+
         let start = Instant::now();
-        match clean_expired_messages(pool, BATCH_SIZE, message_table_needs_cleaning).await {
+        match clean_expired_messages(pool, batch_size, older_than).await {
             Err(err) => {
                 tracing::error!("{}", err);
                 sleep_time = Some(ON_ERROR);
             }
             Ok(UpdateResult { rows_affected }) => {
                 if rows_affected > 0 {
-                    tracing::debug!(elapsed =? start.elapsed(), "expired {} payloads", rows_affected);
+                    tracing::debug!(elapsed =? start.elapsed(), "expired/pruned {} row(s)", rows_affected);
                 }
 
-                sleep_time = if rows_affected < (BATCH_SIZE as _) {
-                    Some(IDLE)
+                sleep_time = if rows_affected < (batch_size as _) {
+                    Some(idle)
                 } else {
                     // When we see full batches, don't sleep at all.
                     None

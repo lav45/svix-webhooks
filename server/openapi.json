@@ -1862,10 +1862,11 @@
                         },
                         "type": "object"
                     },
-                    "payloadRetentionPeriod": {
+                    "pruneRetentionPeriod": {
                         "default": 90,
+                        "description": "How long to retain this message's payload for, in days. Independent of the server's `prune_retention_period_days`, which governs when the message and its delivery attempts are permanently deleted.",
                         "example": 90,
-                        "format": "int64",
+                        "format": "int32",
                         "maximum": 90,
                         "minimum": 5,
                         "type": "integer"

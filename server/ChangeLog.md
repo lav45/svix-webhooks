@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+## Version 1.100.1
+* Remove the `prune` CLI command. Pruning of old `message`/`messageattempt`/`messagecontent`
+  rows now runs automatically in the background expired message cleaner, controlled by
+  `SVIX_PRUNE_RETENTION_PERIOD_DAYS` (default 90 days).
+* Make the background expired message cleaner's batch size configurable via
+  `SVIX_EXPIRED_MESSAGE_CLEANER_BATCH_SIZE` (default 2,000).
+* Make the background expired message cleaner's idle sleep interval (how long it waits
+  before checking for more work once it has caught up) configurable via
+  `SVIX_EXPIRED_MESSAGE_CLEANER_IDLE_SLEEP_SECS` (default 1 hour, was previously a
+  hardcoded 12 hours).
+* Rename the `payloadRetentionPeriod` field on message creation to `pruneRetentionPeriod`
+  (the old name is still accepted as an alias for backward compatibility). It continues to
+  control early expiry of `messagecontent` rows only (5-90 days, unchanged), and remains
+  fully independent of the server's `prune_retention_period_days` — the two were never
+  related before this rework and still aren't.
+* Remove the legacy background job that nulled the old `message.payload` column (superseded
+  by the `messagecontent` table years ago); only the latter is cleaned up now.
+
 ## Version 1.100.0
 * Upgrade dependencies
 

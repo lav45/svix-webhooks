@@ -5,16 +5,17 @@
 
 use chrono::Utc;
 use http::StatusCode;
-use sea_orm::{ActiveModelBehavior, ActiveModelTrait, DatabaseConnection, Set};
+use sea_orm::{ActiveModelBehavior, ActiveModelTrait, DatabaseConnection, EntityTrait, Set};
 use svix_server::{
     core::types::{
         ApplicationId, BaseId, EndpointId, EventTypeName, MessageAttemptId,
         MessageAttemptTriggerType, MessageId, MessageStatus, OrganizationId,
     },
     db::{
-        models::{application, endpoint, eventtype, message, messageattempt},
-        prune_messages, wipe_org,
+        models::{application, endpoint, eventtype, message, messageattempt, messagecontent},
+        wipe_org,
     },
+    expired_message_cleaner::clean_expired_messages,
     v1::endpoints::event_type::EventTypeOut,
 };
 
@@ -236,7 +237,7 @@ async fn test_prune_deletes_old_keeps_new() {
     }
 
     let cutoff = now - chrono::Duration::days(100);
-    prune_messages(&cfg, cutoff, 10_000).await.unwrap();
+    clean_expired_messages(&db, 10_000, cutoff).await.unwrap();
 
     assert_eq!(count_messages(&db, app_id.clone()).await, 10);
     assert_eq!(count_message_attempts(&db, endp_id.clone()).await, 20);
@@ -272,8 +273,49 @@ async fn test_prune_with_nothing_old_is_noop() {
     }
 
     let cutoff = now - chrono::Duration::days(100);
-    prune_messages(&cfg, cutoff, 10_000u64).await.unwrap();
+    clean_expired_messages(&db, 10_000, cutoff).await.unwrap();
 
     assert_eq!(count_messages(&db, app_id.clone()).await, 10);
     assert_eq!(count_message_attempts(&db, endp_id.clone()).await, 10);
+}
+
+#[tokio::test]
+async fn test_messagecontent_expiry_is_independent_of_prune_cutoff() {
+    // `messagecontent` has no FK/cascade tying it to `message`, so it must be cleaned up
+    // purely based on its own `expiration`, regardless of whether the parent `message` row is
+    // itself old enough to have already crossed the (unrelated) row-prune cutoff.
+    let org_id = OrganizationId::new(None, None);
+    let cfg = std::sync::Arc::new(get_default_test_config());
+
+    let (client, jh) = start_svix_server_with_cfg_and_org_id(cfg.as_ref(), org_id.clone()).await;
+    let app_id = create_test_app(&client, "content-independent-app")
+        .await
+        .unwrap()
+        .id;
+    jh.abort();
+
+    let db = svix_server::db::init_db(&cfg).await;
+    let now = Utc::now();
+
+    // The message itself is 200 days old - well past the 100-day prune cutoff used below -
+    // but its content only expired yesterday.
+    let ts = now - chrono::Duration::days(200);
+    let msg = insert_message(&db, app_id.clone(), org_id.clone(), ts).await;
+    messagecontent::ActiveModel::new(
+        msg.id.clone(),
+        b"{}".to_vec(),
+        (now - chrono::Duration::days(1)).into(),
+    )
+    .insert(&db)
+    .await
+    .unwrap();
+
+    let cutoff = now - chrono::Duration::days(100);
+    clean_expired_messages(&db, 10_000, cutoff).await.unwrap();
+
+    let content = messagecontent::Entity::find_by_id(msg.id)
+        .one(&db)
+        .await
+        .unwrap();
+    assert!(content.is_none());
 }

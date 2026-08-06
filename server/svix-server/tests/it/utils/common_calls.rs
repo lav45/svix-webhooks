@@ -119,7 +119,7 @@ pub fn message_in<T: Serialize>(event_type: &str, payload: T) -> Result<MessageI
     Ok(MessageIn {
         event_type: EventTypeName(event_type.to_owned()),
         payload: RawPayload::from_string(serde_json::to_string(&payload)?)?,
-        payload_retention_period: 5,
+        prune_retention_period: 5,
         channels: None,
         uid: None,
         extra_params: None,

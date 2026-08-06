@@ -5,7 +5,6 @@
 #![forbid(unsafe_code)]
 
 use anyhow::bail;
-use chrono::{Duration, Utc};
 use clap::{Parser, Subcommand};
 use dotenvy::dotenv;
 use svix_server::{
@@ -15,7 +14,7 @@ use svix_server::{
         types::{EndpointSecretInternal, OrganizationId},
     },
     db,
-    db::{background_migrations, prune_messages, wipe_org},
+    db::{background_migrations, wipe_org},
     run, setup_tracing,
 };
 use tracing_subscriber::util::SubscriberInitExt;
@@ -83,27 +82,6 @@ enum Commands {
         #[clap(value_parser = org_id_parser)]
         org_id: OrganizationId,
 
-        #[clap(long)]
-        yes_i_know_what_im_doing: bool,
-    },
-
-    /// Prune messages and their attempts older than a given date.
-    ///
-    /// The cutoff must be at least 3 months in the past. Records are deleted in
-    /// batches to avoid long-running transactions.
-    #[clap()]
-    Prune {
-        /// Cutoff timestamp in RFC 3339 format (e.g. "2024-01-01T00:00:00Z").
-        /// All messages created before this time (and their attempts) will be deleted.
-        /// Must be at least 3 months in the past.
-        #[clap(long)]
-        older_than: chrono::DateTime<Utc>,
-
-        /// Number of rows to delete per batch. Defaults to 10,000.
-        #[clap(long, default_value_t = 10_000)]
-        batch_size: u64,
-
-        /// Confirm that you understand this operation is irreversible.
         #[clap(long)]
         yes_i_know_what_im_doing: bool,
     },
@@ -252,32 +230,6 @@ async fn main() -> anyhow::Result<()> {
                 );
             }
         }
-        Some(Commands::Prune {
-            older_than,
-            batch_size,
-            yes_i_know_what_im_doing,
-        }) => {
-            let ninety_days_ago = Utc::now()
-                .checked_sub_signed(Duration::days(90))
-                .expect("date arithmetic overflow");
-            if older_than >= ninety_days_ago {
-                eprintln!(
-                    "Warning: pruning messages newer than {} (90 days ago) can be unsafe.",
-                    ninety_days_ago.to_rfc3339()
-                );
-            }
-
-            if !yes_i_know_what_im_doing {
-                println!(
-                    "Please confirm you would like to irreversibly delete these messages, and that you confirm you have a backup of your database by passing the \
-                     `--yes-i-know-what-im-doing` flag"
-                );
-                return Ok(());
-            }
-
-            prune_messages(&cfg, older_than, batch_size).await?;
-        }
-
         Some(Commands::GenerateOpenapi) => {
             let mut openapi = svix_server::openapi::initialize_openapi();
 

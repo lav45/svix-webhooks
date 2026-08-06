@@ -127,6 +127,19 @@ worker_max_tasks = 500
 # Maximum seconds of queue long-poll
 queue_max_poll_secs = 20
 
+# Number of rows to process per batch in the background expired message cleaner.
+expired_message_cleaner_batch_size = 2000
+
+# `message`, `messageattempt` and `messagecontent` rows older than this many days are
+# automatically and permanently deleted in the background. Lowering this reclaims database
+# space sooner, at the cost of shortening how far back message/attempt history can be
+# queried through the API. Independent of a message's own `pruneRetentionPeriod`.
+prune_retention_period_days = 90
+
+# How long the background expired message cleaner sleeps for after a batch finds fewer rows
+# than expired_message_cleaner_batch_size (i.e. it has caught up with the current backlog).
+expired_message_cleaner_idle_sleep_secs = 3600
+
 # Optional address of socks5 or http/https proxy server.
 # proxy_addr = socks5://localhost:1080
 

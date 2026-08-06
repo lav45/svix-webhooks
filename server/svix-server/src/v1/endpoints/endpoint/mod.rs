@@ -870,7 +870,7 @@ async fn send_example(
         event_type: data.event_type,
         payload: RawPayload::from_string(example).unwrap(),
         uid: None,
-        payload_retention_period: 90,
+        prune_retention_period: 90,
         extra_params: None,
         application: None,
     };

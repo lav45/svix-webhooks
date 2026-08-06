@@ -124,10 +124,13 @@ pub struct MessageIn {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(example = "example_channel_set", length(min = 1, max = 5))]
     pub channels: Option<EventChannelSet>,
+    /// How long to retain this message's payload for, in days. Independent of the server's
+    /// `prune_retention_period_days`, which governs when the message and its delivery
+    /// attempts are permanently deleted.
     #[validate(range(min = 5, max = 90))]
-    #[serde(default = "default_90")]
+    #[serde(default = "default_90", alias = "payloadRetentionPeriod")]
     #[schemars(example = "default_90")]
-    pub payload_retention_period: i64,
+    pub prune_retention_period: i32,
     #[serde(rename = "transformationsParams")]
     #[schemars(skip)]
     pub extra_params: Option<MessageInExtraParams>,
@@ -179,11 +182,11 @@ impl ModelIn for MessageIn {
             uid,
             event_type,
             channels,
-            payload_retention_period,
+            prune_retention_period,
             ..
         } = self;
 
-        let expiration = Utc::now() + Duration::days(payload_retention_period);
+        let expiration = Utc::now() + Duration::days(prune_retention_period.into());
 
         model.uid = Set(uid);
         model.event_type = Set(event_type);
@@ -249,7 +252,7 @@ fn default_true() -> bool {
     true
 }
 
-fn default_90() -> i64 {
+fn default_90() -> i32 {
     90
 }
 

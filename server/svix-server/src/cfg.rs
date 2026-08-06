@@ -246,6 +246,21 @@ pub struct ConfigurationInner {
     /// Should this instance run background migrations
     pub background_migrations_enabled: bool,
 
+    /// Number of rows to process per batch in the background expired message cleaner.
+    #[validate(range(min = 1))]
+    pub expired_message_cleaner_batch_size: i32,
+
+    /// `message`, `messageattempt` and `messagecontent` rows older than this many days are
+    /// automatically and permanently deleted by the background expired message cleaner.
+    /// Independent of a message's own `pruneRetentionPeriod`.
+    #[validate(range(min = 1))]
+    pub prune_retention_period_days: i32,
+
+    /// How long the background expired message cleaner sleeps for after a batch finds
+    /// fewer rows than `expired_message_cleaner_batch_size` (i.e. it has caught up).
+    #[validate(range(min = 0))]
+    pub expired_message_cleaner_idle_sleep_secs: i64,
+
     #[serde(flatten)]
     pub internal: InternalConfig,
 }

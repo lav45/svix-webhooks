@@ -262,7 +262,7 @@ pub async fn run_with_prefix(
         async {
             if with_worker {
                 tracing::debug!("Expired message cleaner: Started");
-                expired_message_cleaner_loop(&pool).await
+                expired_message_cleaner_loop(&cfg, &pool).await
             } else {
                 tracing::debug!("Expired message cleaner: off");
                 Ok(())
