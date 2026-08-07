@@ -280,15 +280,17 @@ async fn test_prune_with_nothing_old_is_noop() {
 }
 
 #[tokio::test]
-async fn test_messagecontent_expiry_is_independent_of_prune_cutoff() {
-    // `messagecontent` has no FK/cascade tying it to `message`, so it must be cleaned up
-    // purely based on its own `expiration`, regardless of whether the parent `message` row is
-    // itself old enough to have already crossed the (unrelated) row-prune cutoff.
+async fn test_messagecontent_cleaned_by_either_expiry_or_prune_cutoff() {
+    // `messagecontent` has no FK/cascade tying it to `message`, so the row-pruning queries never
+    // touch it - it has to clean itself up on both criteria: its own `expiration` (so a payload
+    // asked to be wiped early goes early, even though the message row survives), *and* the
+    // row-prune cutoff (so content whose `expiration` outlives that cutoff isn't left orphaned
+    // once its `message` row is pruned).
     let org_id = OrganizationId::new(None, None);
     let cfg = std::sync::Arc::new(get_default_test_config());
 
     let (client, jh) = start_svix_server_with_cfg_and_org_id(cfg.as_ref(), org_id.clone()).await;
-    let app_id = create_test_app(&client, "content-independent-app")
+    let app_id = create_test_app(&client, "content-cleanup-app")
         .await
         .unwrap()
         .id;
@@ -296,13 +298,18 @@ async fn test_messagecontent_expiry_is_independent_of_prune_cutoff() {
 
     let db = svix_server::db::init_db(&cfg).await;
     let now = Utc::now();
+    let cutoff = now - chrono::Duration::days(100);
 
-    // The message itself is 200 days old - well past the 100-day prune cutoff used below -
-    // but its content only expired yesterday.
-    let ts = now - chrono::Duration::days(200);
-    let msg = insert_message(&db, app_id.clone(), org_id.clone(), ts).await;
+    // Expired content on a message that is itself 200 days old - well past the prune cutoff.
+    let old_expired = insert_message(
+        &db,
+        app_id.clone(),
+        org_id.clone(),
+        now - chrono::Duration::days(200),
+    )
+    .await;
     messagecontent::ActiveModel::new(
-        msg.id.clone(),
+        old_expired.id.clone(),
         b"{}".to_vec(),
         (now - chrono::Duration::days(1)).into(),
     )
@@ -310,12 +317,71 @@ async fn test_messagecontent_expiry_is_independent_of_prune_cutoff() {
     .await
     .unwrap();
 
-    let cutoff = now - chrono::Duration::days(100);
+    // Content that hasn't expired yet, on a message past the prune cutoff: the message row is
+    // about to go, so the content must go with it rather than outlive it as an orphan.
+    let old_unexpired = insert_message(
+        &db,
+        app_id.clone(),
+        org_id.clone(),
+        now - chrono::Duration::days(150),
+    )
+    .await;
+    messagecontent::ActiveModel::new(
+        old_unexpired.id.clone(),
+        b"{}".to_vec(),
+        (now + chrono::Duration::days(60)).into(),
+    )
+    .insert(&db)
+    .await
+    .unwrap();
+
+    // Expired content on a recent message: the message row stays, only the payload goes.
+    let new_expired = insert_message(
+        &db,
+        app_id.clone(),
+        org_id.clone(),
+        now - chrono::Duration::days(10),
+    )
+    .await;
+    messagecontent::ActiveModel::new(
+        new_expired.id.clone(),
+        b"{}".to_vec(),
+        (now - chrono::Duration::days(1)).into(),
+    )
+    .insert(&db)
+    .await
+    .unwrap();
+
+    // Neither criterion met - must survive.
+    let kept = insert_message(
+        &db,
+        app_id.clone(),
+        org_id.clone(),
+        now - chrono::Duration::days(10),
+    )
+    .await;
+    messagecontent::ActiveModel::new(
+        kept.id.clone(),
+        b"{}".to_vec(),
+        (now + chrono::Duration::days(60)).into(),
+    )
+    .insert(&db)
+    .await
+    .unwrap();
+
     clean_expired_messages(&db, 10_000, cutoff).await.unwrap();
 
-    let content = messagecontent::Entity::find_by_id(msg.id)
+    for id in [old_expired.id, old_unexpired.id, new_expired.id] {
+        let content = messagecontent::Entity::find_by_id(id.clone())
+            .one(&db)
+            .await
+            .unwrap();
+        assert!(content.is_none(), "{id} should have been cleaned up");
+    }
+
+    let content = messagecontent::Entity::find_by_id(kept.id)
         .one(&db)
         .await
         .unwrap();
-    assert!(content.is_none());
+    assert!(content.is_some());
 }

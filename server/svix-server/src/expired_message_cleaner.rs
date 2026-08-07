@@ -30,19 +30,25 @@ async fn exec_without_timeout(pool: &DatabaseConnection, stmt: Statement) -> DbR
 }
 
 /// Deletes `messagecontent` rows whose own `expiration` (settable per-message via the API's
-/// `pruneRetentionPeriod`) has passed, and permanently prunes `messageattempt` and `message`
-/// rows older than `older_than`. `limit` sets how many rows to delete at a time, per query.
+/// `pruneRetentionPeriod`) has passed or that belong to a message older than `older_than`, and
+/// permanently prunes `messageattempt` and `message` rows older than `older_than`. `limit` sets
+/// how many rows to delete at a time, per query.
 pub async fn clean_expired_messages(
     pool: &DatabaseConnection,
     limit: i32,
     older_than: chrono::DateTime<Utc>,
 ) -> DbResult<UpdateResult> {
     let batch_limit: Value = limit.into();
+    let cutoff: Value = MessageId::start_id(older_than).to_string().into();
 
-    // `messagecontent` has no FK/cascade tying it to `message`, so it must clean itself up
-    // purely based on its own `expiration` - it cannot assume the row-pruning queries below
-    // will ever delete it (their cutoff is independent and can easily lag behind, or run
-    // ahead of, a given message's own expiration).
+    // `messagecontent.id` *is* the message id, so `id < $cutoff` here means the same thing as it
+    // does in the row-pruning queries below: the message is past the operator's retention period.
+    //
+    // Both criteria are needed, OR'd. `messagecontent` has no FK/cascade tying it to `message`, so
+    // the row-pruning queries below never touch it - without `expiration <= now()` a payload asked
+    // to be wiped early (privacy) would linger until the global cutoff, and without `id < $cutoff`
+    // any content whose own `expiration` outlives that cutoff would be orphaned once its `message`
+    // row is pruned out from under it.
     let content_stmt = Statement::from_sql_and_values(
         pool.get_database_backend(),
         r#"
@@ -51,17 +57,17 @@ pub async fn clean_expired_messages(
                 SELECT id FROM messagecontent
                 WHERE
                     expiration <= now()
-                LIMIT $1
+                    OR id < $1
+                LIMIT $2
                 FOR UPDATE SKIP LOCKED
             )
         )
     "#,
-        [batch_limit.clone()],
+        [cutoff.clone(), batch_limit.clone()],
     );
     let expired_content = pool.execute(content_stmt).await?.rows_affected();
 
     // Permanently prune `messageattempt` and `message` rows older than the retention period.
-    let cutoff: Value = MessageId::start_id(older_than).to_string().into();
     let attempt_stmt = Statement::from_sql_and_values(
         pool.get_database_backend(),
         r#"
