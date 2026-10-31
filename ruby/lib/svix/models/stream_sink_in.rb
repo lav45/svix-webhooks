@@ -2,21 +2,24 @@
 # This file is @generated
 require "json"
 
-require_relative "./azure_blob_storage_config"
-require_relative "./big_query_config"
-require_relative "./clickhouse_config"
-require_relative "./event_bridge_config"
-require_relative "./google_cloud_pub_sub_config"
-require_relative "./google_cloud_storage_config"
-require_relative "./rabbit_mq_config"
-require_relative "./redshift_config"
-require_relative "./s3_config"
-require_relative "./sink_http_config"
-require_relative "./sink_otel_v1_config"
+require_relative "./azure_blob_storage_config_in"
+require_relative "./big_query_config_in"
+require_relative "./clickhouse_config_in"
+require_relative "./elastic_search_config_in"
+require_relative "./event_bridge_config_in"
+require_relative "./google_cloud_pub_sub_config_in"
+require_relative "./google_cloud_storage_config_in"
+require_relative "./otel_tracing_config_in"
+require_relative "./post_hog_config_in"
+require_relative "./postgres_config_in"
+require_relative "./rabbit_mq_config_in"
+require_relative "./redshift_config_in"
+require_relative "./s3_config_in"
+require_relative "./sink_http_config_in"
 require_relative "./sink_status_in"
-require_relative "./snowflake_config"
-require_relative "./sns_config"
-require_relative "./sqs_config"
+require_relative "./snowflake_config_in"
+require_relative "./sns_config_in"
+require_relative "./sqs_config_in"
 
 module Svix
   class StreamSinkInConfig
@@ -31,51 +34,60 @@ module Svix
       end
       # Serializes the object to a json string
       # @return String
-      def to_json
-        JSON.dump(serialize)
+      def to_json(*args)
+        serialize.to_json(*args)
       end
     end
 
-    class AzureBlobStorage < AzureBlobStorageConfig
+    class AzureBlobStorage < AzureBlobStorageConfigIn
     end
 
-    class OtelTracing < SinkOtelV1Config
+    class OtelTracing < OtelTracingConfigIn
     end
 
-    class Http < SinkHttpConfig
+    class Http < SinkHttpConfigIn
     end
 
-    class AmazonS3 < S3Config
+    class AmazonS3 < S3ConfigIn
     end
 
-    class GoogleCloudStorage < GoogleCloudStorageConfig
+    class GoogleCloudStorage < GoogleCloudStorageConfigIn
     end
 
-    class GoogleCloudPubSub < GoogleCloudPubSubConfig
+    class GoogleCloudPubSub < GoogleCloudPubSubConfigIn
     end
 
-    class Sqs < SqsConfig
+    class Sqs < SqsConfigIn
     end
 
-    class Sns < SnsConfig
+    class Sns < SnsConfigIn
     end
 
-    class BigQuery < BigQueryConfig
+    class BigQuery < BigQueryConfigIn
     end
 
-    class Clickhouse < ClickhouseConfig
+    class Clickhouse < ClickhouseConfigIn
     end
 
-    class EventBridge < EventBridgeConfig
+    class EventBridge < EventBridgeConfigIn
     end
 
-    class Snowflake < SnowflakeConfig
+    class Snowflake < SnowflakeConfigIn
     end
 
-    class RabbitMq < RabbitMqConfig
+    class RabbitMq < RabbitMqConfigIn
     end
 
-    class Redshift < RedshiftConfig
+    class Redshift < RedshiftConfigIn
+    end
+
+    class Postgres < PostgresConfigIn
+    end
+
+    class ElasticSearch < ElasticSearchConfigIn
+    end
+
+    class PostHog < PostHogConfigIn
     end
   end
 
@@ -84,7 +96,8 @@ module Svix
     attr_accessor :uid
     # Whether the sink will receive events.
     #
-    # If the sink is `enabled`, any events posted to the stream will be dispatched to the Sink in the same order that events were posted to the stream.
+    # If the sink is `enabled`, any events posted to the stream will be
+    # dispatched to the Sink in the same order that events were posted to the stream.
     #
     # If the sink is `disabled`, events will not be dispatched to the sink until the sink is reenabled.
     attr_accessor :status
@@ -96,12 +109,14 @@ module Svix
     #
     # Note that we will never send an empty batch of events to the Sink.
     attr_accessor :max_wait_secs
-    # A list of event types that filter which events are dispatched to the Sink. An empty list (or null) will not filter out any events.
+    # A list of event types that filter which events are dispatched to the Sink. An empty list (or null) will not filter out
+    # any events.
     attr_accessor :event_types
+    attr_accessor :channels
     attr_accessor :metadata
     attr_accessor :config
 
-    ALL_FIELD ||= ["uid", "status", "batch_size", "max_wait_secs", "event_types", "metadata", "config"].freeze
+    ALL_FIELD ||= ["uid", "status", "batch_size", "max_wait_secs", "event_types", "channels", "metadata", "config"].freeze
     private_constant :ALL_FIELD
     TYPE_TO_NAME = {
       StreamSinkInConfig::Poller => "poller",
@@ -118,7 +133,10 @@ module Svix
       StreamSinkInConfig::EventBridge => "eventBridge",
       StreamSinkInConfig::Snowflake => "snowflake",
       StreamSinkInConfig::RabbitMq => "rabbitMq",
-      StreamSinkInConfig::Redshift => "redshift"
+      StreamSinkInConfig::Redshift => "redshift",
+      StreamSinkInConfig::Postgres => "postgres",
+      StreamSinkInConfig::ElasticSearch => "elasticSearch",
+      StreamSinkInConfig::PostHog => "postHog"
     }
     private_constant :TYPE_TO_NAME
     NAME_TO_TYPE = TYPE_TO_NAME.invert
@@ -137,7 +155,7 @@ module Svix
           fail(ArgumentError, "The field #{k} is not part of Svix::StreamSinkIn")
         end
 
-        if k == "config"
+        if k.to_s == "config"
           unless TYPE_TO_NAME.key?(v.class)
             fail(ArgumentError, "The field #{k} can't be a `#{v.class}` expected one of #{TYPE_TO_NAME.keys}")
           end
@@ -162,27 +180,25 @@ module Svix
       attrs["batch_size"] = attributes["batchSize"]
       attrs["max_wait_secs"] = attributes["maxWaitSecs"]
       attrs["event_types"] = attributes["eventTypes"]
+      attrs["channels"] = attributes["channels"]
       attrs["metadata"] = attributes["metadata"]
       unless NAME_TO_TYPE.key?(attributes["type"])
         fail(ArgumentError, "Invalid type `#{attributes["type"]}` expected on of #{NAME_TO_TYPE.keys}")
       end
 
-      unless attributes.key?("config")
-        fail(ArgumentError, "Missing required field config")
-      end
-
-      attrs["config"] = NAME_TO_TYPE[attributes["type"]].deserialize(attributes["config"])
+      attrs["config"] = NAME_TO_TYPE[attributes["type"]].deserialize(attributes["config"] || {})
       new(attrs)
     end
 
     def serialize
       out = Hash.new
-      out["uid"] = Svix::serialize_primitive(@uid) if @uid
-      out["status"] = Svix::serialize_schema_ref(@status) if @status
-      out["batchSize"] = Svix::serialize_primitive(@batch_size) if @batch_size
-      out["maxWaitSecs"] = Svix::serialize_primitive(@max_wait_secs) if @max_wait_secs
-      out["eventTypes"] = Svix::serialize_primitive(@event_types) if @event_types
-      out["metadata"] = Svix::serialize_primitive(@metadata) if @metadata
+      out["uid"] = Svix::serialize_primitive(@uid) unless @uid.nil?
+      out["status"] = Svix::serialize_schema_ref(@status) unless @status.nil?
+      out["batchSize"] = Svix::serialize_primitive(@batch_size) unless @batch_size.nil?
+      out["maxWaitSecs"] = Svix::serialize_primitive(@max_wait_secs) unless @max_wait_secs.nil?
+      out["eventTypes"] = Svix::serialize_primitive(@event_types) unless @event_types.nil?
+      out["channels"] = Svix::serialize_primitive(@channels) unless @channels.nil?
+      out["metadata"] = Svix::serialize_primitive(@metadata) unless @metadata.nil?
       out["type"] = @__enum_discriminator
       out["config"] = @config.serialize
       out
@@ -190,8 +206,8 @@ module Svix
 
     # Serializes the object to a json string
     # @return String
-    def to_json
-      JSON.dump(serialize)
+    def to_json(*args)
+      serialize.to_json(*args)
     end
 
   end

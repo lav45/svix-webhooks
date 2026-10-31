@@ -1,0 +1,118 @@
+# frozen_string_literal: true
+# This file is @generated
+require "json"
+
+module Svix
+  # Configuration parameters for defining a Redshift sink.
+  #
+  # For provisioned clusters, set `cluster_identifier` and `db_user`.
+  # For Redshift Serverless, set `workgroup_name`.
+  class RedshiftConfigIn
+    # Access key ID.
+    #
+    # Required (along with `secret_access_key`) if `role_arn` is blank.
+    attr_accessor :access_key_id
+    # Secret access key.
+    #
+    # Required (along with `access_key_id`) if `role_arn` is blank.
+    attr_accessor :secret_access_key
+    # Role ARN for delegated authentication
+    attr_accessor :role_arn
+    # Shared secret passed as the STS ExternalId.
+    #
+    # Can only be set if `role_arn` is Some
+    attr_accessor :external_id
+    # The region of the Redshift DB.
+    #
+    # Currently a required field, but marked as optional because we may infer
+    # it from other fields in the future.
+    attr_accessor :region
+    # Required for provisioned clusters.
+    attr_accessor :cluster_identifier
+    # Required for provisioned clusters.
+    attr_accessor :db_user
+    # Required for Redshift Serverless.
+    attr_accessor :workgroup_name
+    # Database name.
+    #
+    # Only required if not using transformations.
+    attr_accessor :db_name
+    # Schema name.
+    #
+    # Only used if not using transformations.
+    attr_accessor :schema_name
+    # Table name.
+    #
+    # Only required if not using transformations.
+    attr_accessor :table_name
+
+    ALL_FIELD ||= [
+      "access_key_id",
+      "secret_access_key",
+      "role_arn",
+      "external_id",
+      "region",
+      "cluster_identifier",
+      "db_user",
+      "workgroup_name",
+      "db_name",
+      "schema_name",
+      "table_name"
+    ].freeze
+    private_constant :ALL_FIELD
+
+    def initialize(attributes = {})
+      unless attributes.is_a?(Hash)
+        fail(ArgumentError, "The input argument (attributes) must be a hash in `Svix::RedshiftConfigIn` new method")
+      end
+
+      attributes.each do |k, v|
+        unless ALL_FIELD.include?(k.to_s)
+          fail(ArgumentError, "The field #{k} is not part of Svix::RedshiftConfigIn")
+        end
+
+        instance_variable_set("@#{k}", v)
+        instance_variable_set("@__#{k}_is_defined", true)
+      end
+    end
+
+    def self.deserialize(attributes = {})
+      attributes = attributes.transform_keys(&:to_s)
+      attrs = Hash.new
+      attrs["access_key_id"] = attributes["accessKeyId"]
+      attrs["secret_access_key"] = attributes["secretAccessKey"]
+      attrs["role_arn"] = attributes["roleArn"]
+      attrs["external_id"] = attributes["externalId"]
+      attrs["region"] = attributes["region"]
+      attrs["cluster_identifier"] = attributes["clusterIdentifier"]
+      attrs["db_user"] = attributes["dbUser"]
+      attrs["workgroup_name"] = attributes["workgroupName"]
+      attrs["db_name"] = attributes["dbName"]
+      attrs["schema_name"] = attributes["schemaName"]
+      attrs["table_name"] = attributes["tableName"]
+      new(attrs)
+    end
+
+    def serialize
+      out = Hash.new
+      out["accessKeyId"] = Svix::serialize_primitive(@access_key_id) unless @access_key_id.nil?
+      out["secretAccessKey"] = Svix::serialize_primitive(@secret_access_key) unless @secret_access_key.nil?
+      out["roleArn"] = Svix::serialize_primitive(@role_arn) unless @role_arn.nil?
+      out["externalId"] = Svix::serialize_primitive(@external_id) unless @external_id.nil?
+      out["region"] = Svix::serialize_primitive(@region) unless @region.nil?
+      out["clusterIdentifier"] = Svix::serialize_primitive(@cluster_identifier) unless @cluster_identifier.nil?
+      out["dbUser"] = Svix::serialize_primitive(@db_user) unless @db_user.nil?
+      out["workgroupName"] = Svix::serialize_primitive(@workgroup_name) unless @workgroup_name.nil?
+      out["dbName"] = Svix::serialize_primitive(@db_name) unless @db_name.nil?
+      out["schemaName"] = Svix::serialize_primitive(@schema_name) unless @schema_name.nil?
+      out["tableName"] = Svix::serialize_primitive(@table_name) unless @table_name.nil?
+      out
+    end
+
+    # Serializes the object to a json string
+    # @return String
+    def to_json(*args)
+      serialize.to_json(*args)
+    end
+  end
+end

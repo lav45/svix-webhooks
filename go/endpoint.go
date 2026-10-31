@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/svix/svix-webhooks/go/internal"
-	"github.com/svix/svix-webhooks/go/models"
+	"github.com/svix/svix-webhooks/v2/go/internal"
+	"github.com/svix/svix-webhooks/v2/go/models"
 )
 
 type Endpoint struct {
@@ -48,6 +48,13 @@ type EndpointBulkReplayOptions struct {
 }
 
 type EndpointGetStatsOptions struct {
+	// Filter the range to data starting from this date.
+	Since *time.Time
+	// Filter the range to data ending by this date.
+	Until *time.Time
+}
+
+type EndpointGetAttemptStatsOptions struct {
 	// Filter the range to data starting from this date.
 	Since *time.Time
 	// Filter the range to data ending by this date.
@@ -255,7 +262,7 @@ func (endpoint Endpoint) RotateSecret(
 	endpointId string,
 	endpointSecretRotateIn models.EndpointSecretRotateIn,
 	o *EndpointRotateSecretOptions,
-) error {
+) (*models.EndpointSecretOut, error) {
 	var err error
 	pathMap := map[string]string{
 		"app_id":      appId,
@@ -268,9 +275,9 @@ func (endpoint Endpoint) RotateSecret(
 	}
 	internal.SerializeParamToMap("idempotency-key", o.IdempotencyKey, headerMap, &err)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	_, err = internal.ExecuteRequest[models.EndpointSecretRotateIn, any](
+	return internal.ExecuteRequest[models.EndpointSecretRotateIn, models.EndpointSecretOut](
 		ctx,
 		endpoint.client,
 		"POST",
@@ -280,7 +287,6 @@ func (endpoint Endpoint) RotateSecret(
 		headerMap,
 		&endpointSecretRotateIn,
 	)
-	return err
 }
 
 // Get the additional headers to be sent with the webhook.
@@ -484,6 +490,42 @@ func (endpoint Endpoint) GetStats(
 		endpoint.client,
 		"GET",
 		"/api/v1/app/{app_id}/endpoint/{endpoint_id}/stats",
+		pathMap,
+		queryMap,
+		nil,
+		nil,
+	)
+}
+
+// Get basic statistics about attempted deliveries for the endpoint.
+//
+// Time windows are always rounded to hour granularity
+func (endpoint Endpoint) GetAttemptStats(
+	ctx context.Context,
+	appId string,
+	endpointId string,
+	o *EndpointGetAttemptStatsOptions,
+) (*models.EndpointAttemptStats, error) {
+	var err error
+	pathMap := map[string]string{
+		"app_id":      appId,
+		"endpoint_id": endpointId,
+	}
+	queryMap := map[string]string{}
+	if o == nil {
+		opts := EndpointGetAttemptStatsOptions{}
+		o = &opts
+	}
+	internal.SerializeParamToMap("since", o.Since, queryMap, &err)
+	internal.SerializeParamToMap("until", o.Until, queryMap, &err)
+	if err != nil {
+		return nil, err
+	}
+	return internal.ExecuteRequest[any, models.EndpointAttemptStats](
+		ctx,
+		endpoint.client,
+		"GET",
+		"/api/v1/app/{app_id}/endpoint/{endpoint_id}/attempt-stats",
 		pathMap,
 		queryMap,
 		nil,

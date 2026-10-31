@@ -5,8 +5,7 @@ use std::time::{Duration, Instant};
 
 use chrono::Utc;
 use sea_orm::{
-    ConnectionTrait, DatabaseConnection, DbErr, ExecResult, Statement, TransactionTrait,
-    UpdateResult, Value,
+    ConnectionTrait, DatabaseConnection, DbErr, ExecResult, Statement, TransactionTrait, Value,
 };
 
 use crate::{
@@ -23,8 +22,8 @@ async fn exec_without_timeout(pool: &DatabaseConnection, stmt: Statement) -> DbR
         "SET LOCAL statement_timeout=0;",
     );
     let tx = pool.begin().await?;
-    let _ = tx.execute(increase_timeout).await?;
-    let res = tx.execute(stmt).await?;
+    let _ = tx.execute_raw(increase_timeout).await?;
+    let res = tx.execute_raw(stmt).await?;
     tx.commit().await?;
     Ok(res)
 }
@@ -37,7 +36,7 @@ pub async fn clean_expired_messages(
     pool: &DatabaseConnection,
     limit: i32,
     older_than: chrono::DateTime<Utc>,
-) -> DbResult<UpdateResult> {
+) -> DbResult<u64> {
     let batch_limit: Value = limit.into();
     let cutoff: Value = MessageId::start_id(older_than).to_string().into();
 
@@ -65,7 +64,7 @@ pub async fn clean_expired_messages(
     "#,
         [cutoff.clone(), batch_limit.clone()],
     );
-    let expired_content = pool.execute(content_stmt).await?.rows_affected();
+    let expired_content = pool.execute_raw(content_stmt).await?.rows_affected();
 
     // Permanently prune `messageattempt` and `message` rows older than the retention period.
     let attempt_stmt = Statement::from_sql_and_values(
@@ -90,9 +89,7 @@ pub async fn clean_expired_messages(
     );
     let pruned_messages = exec_without_timeout(pool, message_stmt).await?.rows_affected();
 
-    Ok(UpdateResult {
-        rows_affected: expired_content + pruned_attempts + pruned_messages,
-    })
+    Ok(expired_content + pruned_attempts + pruned_messages)
 }
 
 /// Polls the database for `messagecontent` rows to delete once their own `expiration` passes,
@@ -129,7 +126,7 @@ pub async fn expired_message_cleaner_loop(
                 tracing::error!("{}", err);
                 sleep_time = Some(ON_ERROR);
             }
-            Ok(UpdateResult { rows_affected }) => {
+            Ok(rows_affected) => {
                 if rows_affected > 0 {
                     tracing::debug!(elapsed =? start.elapsed(), "expired/pruned {} row(s)", rows_affected);
                 }

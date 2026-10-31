@@ -1,28 +1,46 @@
 // this file is @generated
 import {
-  type AzureBlobStorageConfig,
-  AzureBlobStorageConfigSerializer,
-} from "./azureBlobStorageConfig";
-import { type BigQueryConfig, BigQueryConfigSerializer } from "./bigQueryConfig";
-import { type ClickhouseConfig, ClickhouseConfigSerializer } from "./clickhouseConfig";
-import { type EventBridgeConfig, EventBridgeConfigSerializer } from "./eventBridgeConfig";
+  type AzureBlobStorageConfigOut,
+  AzureBlobStorageConfigOutSerializer,
+} from "./azureBlobStorageConfigOut";
+import { type BigQueryConfigOut, BigQueryConfigOutSerializer } from "./bigQueryConfigOut";
 import {
-  type GoogleCloudPubSubConfig,
-  GoogleCloudPubSubConfigSerializer,
-} from "./googleCloudPubSubConfig";
+  type ClickhouseConfigOut,
+  ClickhouseConfigOutSerializer,
+} from "./clickhouseConfigOut";
 import {
-  type GoogleCloudStorageConfig,
-  GoogleCloudStorageConfigSerializer,
-} from "./googleCloudStorageConfig";
-import { type RabbitMqConfig, RabbitMqConfigSerializer } from "./rabbitMqConfig";
-import { type RedshiftConfig, RedshiftConfigSerializer } from "./redshiftConfig";
-import { type S3Config, S3ConfigSerializer } from "./s3Config";
-import { type SinkHttpConfig, SinkHttpConfigSerializer } from "./sinkHttpConfig";
-import { type SinkOtelV1Config, SinkOtelV1ConfigSerializer } from "./sinkOtelV1Config";
+  type ElasticSearchConfigOut,
+  ElasticSearchConfigOutSerializer,
+} from "./elasticSearchConfigOut";
+import {
+  type EventBridgeConfigOut,
+  EventBridgeConfigOutSerializer,
+} from "./eventBridgeConfigOut";
+import {
+  type GoogleCloudPubSubConfigOut,
+  GoogleCloudPubSubConfigOutSerializer,
+} from "./googleCloudPubSubConfigOut";
+import {
+  type GoogleCloudStorageConfigOut,
+  GoogleCloudStorageConfigOutSerializer,
+} from "./googleCloudStorageConfigOut";
+import {
+  type OtelTracingConfigOut,
+  OtelTracingConfigOutSerializer,
+} from "./otelTracingConfigOut";
+import { type PostHogConfigOut, PostHogConfigOutSerializer } from "./postHogConfigOut";
+import { type PostgresConfigOut, PostgresConfigOutSerializer } from "./postgresConfigOut";
+import { type RabbitMqConfigOut, RabbitMqConfigOutSerializer } from "./rabbitMqConfigOut";
+import { type RedshiftConfigOut, RedshiftConfigOutSerializer } from "./redshiftConfigOut";
+import { type S3ConfigOut, S3ConfigOutSerializer } from "./s3ConfigOut";
+import { type SinkHttpConfigOut, SinkHttpConfigOutSerializer } from "./sinkHttpConfigOut";
 import { type SinkStatus, SinkStatusSerializer } from "./sinkStatus";
-import { type SnowflakeConfig, SnowflakeConfigSerializer } from "./snowflakeConfig";
-import { type SnsConfig, SnsConfigSerializer } from "./snsConfig";
-import { type SqsConfig, SqsConfigSerializer } from "./sqsConfig";
+import {
+  type SnowflakeConfigOut,
+  SnowflakeConfigOutSerializer,
+} from "./snowflakeConfigOut";
+import { type SnsConfigOut, SnsConfigOutSerializer } from "./snsConfigOut";
+import { type SqsConfigOut, SqsConfigOutSerializer } from "./sqsConfigOut";
 
 interface _StreamSinkOutFields {
   /** The sink's ID. */
@@ -37,6 +55,7 @@ interface _StreamSinkOutFields {
   batchSize: number;
   maxWaitSecs: number;
   eventTypes?: string[];
+  channels?: string[];
   nextRetryAt?: Date | null;
   metadata: { [key: string]: string };
 }
@@ -44,98 +63,125 @@ interface _StreamSinkOutFields {
 // biome-ignore lint/suspicious/noEmptyInterface: backwards compat
 interface StreamSinkOutPollerConfig {}
 
+// biome-ignore lint/suspicious/noEmptyInterface: backwards compat
+interface StreamSinkOutPollingEndpointConfig {}
+
 interface StreamSinkOutPoller {
   type: "poller";
   config?: StreamSinkOutPollerConfig;
 }
 
+interface StreamSinkOutPollingEndpoint {
+  type: "pollingEndpoint";
+  config?: StreamSinkOutPollingEndpointConfig;
+}
+
 interface StreamSinkOutAzureBlobStorage {
   type: "azureBlobStorage";
-  config: AzureBlobStorageConfig;
+  config: AzureBlobStorageConfigOut;
 }
 
 interface StreamSinkOutOtelTracing {
   type: "otelTracing";
-  config: SinkOtelV1Config;
+  config: OtelTracingConfigOut;
 }
 
 interface StreamSinkOutHttp {
   type: "http";
-  config: SinkHttpConfig;
+  config: SinkHttpConfigOut;
 }
 
 interface StreamSinkOutAmazonS3 {
   type: "amazonS3";
-  config: S3Config;
-}
-
-interface StreamSinkOutGoogleCloudStorage {
-  type: "googleCloudStorage";
-  config: GoogleCloudStorageConfig;
-}
-
-interface StreamSinkOutGoogleCloudPubSub {
-  type: "googleCloudPubSub";
-  config: GoogleCloudPubSubConfig;
-}
-
-interface StreamSinkOutSqs {
-  type: "sqs";
-  config: SqsConfig;
-}
-
-interface StreamSinkOutSns {
-  type: "sns";
-  config: SnsConfig;
-}
-
-interface StreamSinkOutBigQuery {
-  type: "bigQuery";
-  config: BigQueryConfig;
-}
-
-interface StreamSinkOutClickhouse {
-  type: "clickhouse";
-  config: ClickhouseConfig;
-}
-
-interface StreamSinkOutEventBridge {
-  type: "eventBridge";
-  config: EventBridgeConfig;
+  config: S3ConfigOut;
 }
 
 interface StreamSinkOutSnowflake {
   type: "snowflake";
-  config: SnowflakeConfig;
+  config: SnowflakeConfigOut;
 }
 
-interface StreamSinkOutRabbitMq {
-  type: "rabbitMq";
-  config: RabbitMqConfig;
+interface StreamSinkOutGoogleCloudStorage {
+  type: "googleCloudStorage";
+  config: GoogleCloudStorageConfigOut;
+}
+
+interface StreamSinkOutGoogleCloudPubSub {
+  type: "googleCloudPubSub";
+  config: GoogleCloudPubSubConfigOut;
 }
 
 interface StreamSinkOutRedshift {
   type: "redshift";
-  config: RedshiftConfig;
+  config: RedshiftConfigOut;
+}
+
+interface StreamSinkOutBigQuery {
+  type: "bigQuery";
+  config: BigQueryConfigOut;
+}
+
+interface StreamSinkOutClickhouse {
+  type: "clickhouse";
+  config: ClickhouseConfigOut;
+}
+
+interface StreamSinkOutRabbitMq {
+  type: "rabbitMq";
+  config: RabbitMqConfigOut;
+}
+
+interface StreamSinkOutSqs {
+  type: "sqs";
+  config: SqsConfigOut;
+}
+
+interface StreamSinkOutEventBridge {
+  type: "eventBridge";
+  config: EventBridgeConfigOut;
+}
+
+interface StreamSinkOutSns {
+  type: "sns";
+  config: SnsConfigOut;
+}
+
+interface StreamSinkOutPostgres {
+  type: "postgres";
+  config: PostgresConfigOut;
+}
+
+interface StreamSinkOutElasticSearch {
+  type: "elasticSearch";
+  config: ElasticSearchConfigOut;
+}
+
+interface StreamSinkOutPostHog {
+  type: "postHog";
+  config: PostHogConfigOut;
 }
 
 export type StreamSinkOut = _StreamSinkOutFields &
   (
     | StreamSinkOutPoller
+    | StreamSinkOutPollingEndpoint
     | StreamSinkOutAzureBlobStorage
     | StreamSinkOutOtelTracing
     | StreamSinkOutHttp
     | StreamSinkOutAmazonS3
+    | StreamSinkOutSnowflake
     | StreamSinkOutGoogleCloudStorage
     | StreamSinkOutGoogleCloudPubSub
-    | StreamSinkOutSqs
-    | StreamSinkOutSns
+    | StreamSinkOutRedshift
     | StreamSinkOutBigQuery
     | StreamSinkOutClickhouse
-    | StreamSinkOutEventBridge
-    | StreamSinkOutSnowflake
     | StreamSinkOutRabbitMq
-    | StreamSinkOutRedshift
+    | StreamSinkOutSqs
+    | StreamSinkOutEventBridge
+    | StreamSinkOutSns
+    | StreamSinkOutPostgres
+    | StreamSinkOutElasticSearch
+    | StreamSinkOutPostHog
   );
 
 export const StreamSinkOutSerializer = {
@@ -146,34 +192,43 @@ export const StreamSinkOutSerializer = {
       switch (type) {
         case "poller":
           return {};
+
+        case "pollingEndpoint":
+          return {};
         case "azureBlobStorage":
-          return AzureBlobStorageConfigSerializer._fromJsonObject(object["config"]);
+          return AzureBlobStorageConfigOutSerializer._fromJsonObject(object["config"]);
         case "otelTracing":
-          return SinkOtelV1ConfigSerializer._fromJsonObject(object["config"]);
+          return OtelTracingConfigOutSerializer._fromJsonObject(object["config"]);
         case "http":
-          return SinkHttpConfigSerializer._fromJsonObject(object["config"]);
+          return SinkHttpConfigOutSerializer._fromJsonObject(object["config"]);
         case "amazonS3":
-          return S3ConfigSerializer._fromJsonObject(object["config"]);
-        case "googleCloudStorage":
-          return GoogleCloudStorageConfigSerializer._fromJsonObject(object["config"]);
-        case "googleCloudPubSub":
-          return GoogleCloudPubSubConfigSerializer._fromJsonObject(object["config"]);
-        case "sqs":
-          return SqsConfigSerializer._fromJsonObject(object["config"]);
-        case "sns":
-          return SnsConfigSerializer._fromJsonObject(object["config"]);
-        case "bigQuery":
-          return BigQueryConfigSerializer._fromJsonObject(object["config"]);
-        case "clickhouse":
-          return ClickhouseConfigSerializer._fromJsonObject(object["config"]);
-        case "eventBridge":
-          return EventBridgeConfigSerializer._fromJsonObject(object["config"]);
+          return S3ConfigOutSerializer._fromJsonObject(object["config"]);
         case "snowflake":
-          return SnowflakeConfigSerializer._fromJsonObject(object["config"]);
-        case "rabbitMq":
-          return RabbitMqConfigSerializer._fromJsonObject(object["config"]);
+          return SnowflakeConfigOutSerializer._fromJsonObject(object["config"]);
+        case "googleCloudStorage":
+          return GoogleCloudStorageConfigOutSerializer._fromJsonObject(object["config"]);
+        case "googleCloudPubSub":
+          return GoogleCloudPubSubConfigOutSerializer._fromJsonObject(object["config"]);
         case "redshift":
-          return RedshiftConfigSerializer._fromJsonObject(object["config"]);
+          return RedshiftConfigOutSerializer._fromJsonObject(object["config"]);
+        case "bigQuery":
+          return BigQueryConfigOutSerializer._fromJsonObject(object["config"]);
+        case "clickhouse":
+          return ClickhouseConfigOutSerializer._fromJsonObject(object["config"]);
+        case "rabbitMq":
+          return RabbitMqConfigOutSerializer._fromJsonObject(object["config"]);
+        case "sqs":
+          return SqsConfigOutSerializer._fromJsonObject(object["config"]);
+        case "eventBridge":
+          return EventBridgeConfigOutSerializer._fromJsonObject(object["config"]);
+        case "sns":
+          return SnsConfigOutSerializer._fromJsonObject(object["config"]);
+        case "postgres":
+          return PostgresConfigOutSerializer._fromJsonObject(object["config"]);
+        case "elasticSearch":
+          return ElasticSearchConfigOutSerializer._fromJsonObject(object["config"]);
+        case "postHog":
+          return PostHogConfigOutSerializer._fromJsonObject(object["config"]);
         default:
           throw new Error(`Unexpected type: ${type}`);
       }
@@ -192,6 +247,7 @@ export const StreamSinkOutSerializer = {
       batchSize: object["batchSize"],
       maxWaitSecs: object["maxWaitSecs"],
       eventTypes: object["eventTypes"],
+      channels: object["channels"],
       nextRetryAt: object["nextRetryAt"] ? new Date(object["nextRetryAt"]) : null,
       metadata: object["metadata"],
     };
@@ -204,47 +260,59 @@ export const StreamSinkOutSerializer = {
       case "poller":
         config = {};
         break;
+      case "pollingEndpoint":
+        config = {};
+        break;
       case "azureBlobStorage":
-        config = AzureBlobStorageConfigSerializer._toJsonObject(self.config);
+        config = AzureBlobStorageConfigOutSerializer._toJsonObject(self.config);
         break;
       case "otelTracing":
-        config = SinkOtelV1ConfigSerializer._toJsonObject(self.config);
+        config = OtelTracingConfigOutSerializer._toJsonObject(self.config);
         break;
       case "http":
-        config = SinkHttpConfigSerializer._toJsonObject(self.config);
+        config = SinkHttpConfigOutSerializer._toJsonObject(self.config);
         break;
       case "amazonS3":
-        config = S3ConfigSerializer._toJsonObject(self.config);
-        break;
-      case "googleCloudStorage":
-        config = GoogleCloudStorageConfigSerializer._toJsonObject(self.config);
-        break;
-      case "googleCloudPubSub":
-        config = GoogleCloudPubSubConfigSerializer._toJsonObject(self.config);
-        break;
-      case "sqs":
-        config = SqsConfigSerializer._toJsonObject(self.config);
-        break;
-      case "sns":
-        config = SnsConfigSerializer._toJsonObject(self.config);
-        break;
-      case "bigQuery":
-        config = BigQueryConfigSerializer._toJsonObject(self.config);
-        break;
-      case "clickhouse":
-        config = ClickhouseConfigSerializer._toJsonObject(self.config);
-        break;
-      case "eventBridge":
-        config = EventBridgeConfigSerializer._toJsonObject(self.config);
+        config = S3ConfigOutSerializer._toJsonObject(self.config);
         break;
       case "snowflake":
-        config = SnowflakeConfigSerializer._toJsonObject(self.config);
+        config = SnowflakeConfigOutSerializer._toJsonObject(self.config);
         break;
-      case "rabbitMq":
-        config = RabbitMqConfigSerializer._toJsonObject(self.config);
+      case "googleCloudStorage":
+        config = GoogleCloudStorageConfigOutSerializer._toJsonObject(self.config);
+        break;
+      case "googleCloudPubSub":
+        config = GoogleCloudPubSubConfigOutSerializer._toJsonObject(self.config);
         break;
       case "redshift":
-        config = RedshiftConfigSerializer._toJsonObject(self.config);
+        config = RedshiftConfigOutSerializer._toJsonObject(self.config);
+        break;
+      case "bigQuery":
+        config = BigQueryConfigOutSerializer._toJsonObject(self.config);
+        break;
+      case "clickhouse":
+        config = ClickhouseConfigOutSerializer._toJsonObject(self.config);
+        break;
+      case "rabbitMq":
+        config = RabbitMqConfigOutSerializer._toJsonObject(self.config);
+        break;
+      case "sqs":
+        config = SqsConfigOutSerializer._toJsonObject(self.config);
+        break;
+      case "eventBridge":
+        config = EventBridgeConfigOutSerializer._toJsonObject(self.config);
+        break;
+      case "sns":
+        config = SnsConfigOutSerializer._toJsonObject(self.config);
+        break;
+      case "postgres":
+        config = PostgresConfigOutSerializer._toJsonObject(self.config);
+        break;
+      case "elasticSearch":
+        config = ElasticSearchConfigOutSerializer._toJsonObject(self.config);
+        break;
+      case "postHog":
+        config = PostHogConfigOutSerializer._toJsonObject(self.config);
         break;
     }
 
@@ -261,6 +329,7 @@ export const StreamSinkOutSerializer = {
       batchSize: self.batchSize,
       maxWaitSecs: self.maxWaitSecs,
       eventTypes: self.eventTypes,
+      channels: self.channels,
       nextRetryAt: self.nextRetryAt,
       metadata: self.metadata,
     };

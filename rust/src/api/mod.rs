@@ -7,8 +7,11 @@ pub use self::client::{Svix, SvixOptions};
 
 mod application;
 mod authentication;
+mod autoconfig_subscription;
 mod background_task;
 mod connector;
+mod destination;
+mod destination_transformation;
 mod endpoint;
 mod endpoint_transformation;
 mod environment;
@@ -43,12 +46,21 @@ pub use self::{
         AuthenticationStreamExpireAllOptions, AuthenticationStreamLogoutOptions,
         AuthenticationStreamPortalAccessOptions,
     },
+    autoconfig_subscription::{
+        AutoconfigSubscription, AutoconfigSubscriptionCreateOptions,
+        AutoconfigSubscriptionRotateOptions,
+    },
     background_task::{BackgroundTask, BackgroundTaskListOptions},
     connector::{Connector, ConnectorCreateOptions, ConnectorListOptions},
+    destination::{
+        Destination, DestinationCreateOptions, DestinationListOptions,
+        DestinationRotateSecretOptions,
+    },
+    destination_transformation::DestinationTransformation,
     endpoint::{
-        Endpoint, EndpointBulkReplayOptions, EndpointCreateOptions, EndpointGetStatsOptions,
-        EndpointListOptions, EndpointRecoverOptions, EndpointReplayMissingOptions,
-        EndpointRotateSecretOptions, EndpointSendExampleOptions,
+        Endpoint, EndpointBulkReplayOptions, EndpointCreateOptions, EndpointGetAttemptStatsOptions,
+        EndpointGetStatsOptions, EndpointListOptions, EndpointRecoverOptions,
+        EndpointReplayMissingOptions, EndpointRotateSecretOptions, EndpointSendExampleOptions,
     },
     endpoint_transformation::EndpointTransformation,
     environment::{Environment, EnvironmentExportOptions, EnvironmentImportOptions},
@@ -74,8 +86,9 @@ pub use self::{
         Integration, IntegrationCreateOptions, IntegrationListOptions, IntegrationRotateKeyOptions,
     },
     message::{
-        Message, MessageCreateOptions, MessageExpungeAllContentsOptions, MessageGetOptions,
-        MessageListOptions, MessagePrecheckOptions,
+        Message, MessageBulkExpungeContentOptions, MessageCreateOptions,
+        MessageExpungeAllContentsOptions, MessageGetOptions, MessageListOptions,
+        MessagePrecheckOptions,
     },
     message_attempt::{
         MessageAttempt, MessageAttemptGetOptions, MessageAttemptListAttemptedDestinationsOptions,
@@ -113,11 +126,17 @@ impl Svix {
     pub fn authentication(&self) -> Authentication<'_> {
         Authentication::new(&self.cfg)
     }
+    pub fn autoconfig_subscription(&self) -> AutoconfigSubscription<'_> {
+        AutoconfigSubscription::new(&self.cfg)
+    }
     pub fn background_task(&self) -> BackgroundTask<'_> {
         BackgroundTask::new(&self.cfg)
     }
     pub fn connector(&self) -> Connector<'_> {
         Connector::new(&self.cfg)
+    }
+    pub fn destination(&self) -> Destination<'_> {
+        Destination::new(&self.cfg)
     }
     pub fn endpoint(&self) -> Endpoint<'_> {
         Endpoint::new(&self.cfg)

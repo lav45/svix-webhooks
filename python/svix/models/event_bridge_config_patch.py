@@ -1,0 +1,20 @@
+# this file is @generated
+import typing as t
+
+from .common import BaseModel
+
+
+class EventBridgeConfigPatch(BaseModel):
+    event_bus_name: t.Optional[str] = None
+
+    detail_type: t.Optional[str] = None
+
+    access_key_id: t.Optional[str] = None
+
+    secret_access_key: t.Optional[str] = None
+
+    role_arn: t.Optional[str] = None
+
+    external_id: t.Optional[str] = None
+
+    region: t.Optional[str] = None

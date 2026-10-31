@@ -6,8 +6,9 @@ module Svix
   class IngestEndpointTransformationOut
     attr_accessor :code
     attr_accessor :enabled
+    attr_accessor :variables
 
-    ALL_FIELD ||= ["code", "enabled"].freeze
+    ALL_FIELD ||= ["code", "enabled", "variables"].freeze
     private_constant :ALL_FIELD
 
     def initialize(attributes = {})
@@ -33,20 +34,22 @@ module Svix
       attrs = Hash.new
       attrs["code"] = attributes["code"]
       attrs["enabled"] = attributes["enabled"]
+      attrs["variables"] = attributes["variables"]
       new(attrs)
     end
 
     def serialize
       out = Hash.new
-      out["code"] = Svix::serialize_primitive(@code) if @code
-      out["enabled"] = Svix::serialize_primitive(@enabled) if @enabled
+      out["code"] = Svix::serialize_primitive(@code) unless @code.nil?
+      out["enabled"] = Svix::serialize_primitive(@enabled) unless @enabled.nil?
+      out["variables"] = Svix::serialize_primitive(@variables) unless @variables.nil?
       out
     end
 
     # Serializes the object to a json string
     # @return String
-    def to_json
-      JSON.dump(serialize)
+    def to_json(*args)
+      serialize.to_json(*args)
     end
   end
 end

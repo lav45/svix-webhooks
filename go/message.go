@@ -5,8 +5,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/svix/svix-webhooks/go/internal"
-	"github.com/svix/svix-webhooks/go/models"
+	"github.com/svix/svix-webhooks/v2/go/internal"
+	"github.com/svix/svix-webhooks/v2/go/models"
 )
 
 type Message struct {
@@ -34,7 +34,8 @@ type MessageListOptions struct {
 	After *time.Time
 	// When `true` message payloads are included in the response.
 	//
-	// Defaults to `false` in v2+ of the Svix SDKs, `true` in v1 or when manually making a request without specifying this parameter.
+	// Defaults to `false` in v2+ of the Svix SDKs, `true` in v1 or when manually making a request
+	// without specifying this parameter.
 	WithContent *bool
 	// Filter messages matching the provided tag.
 	Tag *string
@@ -45,7 +46,8 @@ type MessageListOptions struct {
 type MessageCreateOptions struct {
 	// When `true`, message payloads are included in the response.
 	//
-	// Defaults to `false` in v2+ of the Svix SDKs, `true` in v1 or when manually making a request without specifying this parameter.
+	// Defaults to `false` in v2+ of the Svix SDKs, `true` in v1 or when manually making a request
+	// without specifying this parameter.
 	WithContent    *bool
 	IdempotencyKey *string
 }
@@ -57,8 +59,13 @@ type MessagePrecheckOptions struct {
 type MessageGetOptions struct {
 	// When `true` message payloads are included in the response.
 	//
-	// Defaults to `false` in v2+ of the Svix SDKs, `true` in v1 or when manually making a request without specifying this parameter.
+	// Defaults to `false` in v2+ of the Svix SDKs, `true` in v1 or when manually making a request
+	// without specifying this parameter.
 	WithContent *bool
+}
+
+type MessageBulkExpungeContentOptions struct {
+	IdempotencyKey *string
 }
 
 type MessageExpungeAllContentsOptions struct {
@@ -226,7 +233,8 @@ func (message Message) Get(
 // Delete the given message's payload.
 //
 // Useful in cases when a message was accidentally sent with sensitive content.
-// The message can't be replayed or resent once its payload has been deleted or expired.
+// The message can't be replayed or resent once its payload has been deleted
+// (or has expired).
 func (message Message) ExpungeContent(
 	ctx context.Context,
 	appId string,
@@ -248,6 +256,42 @@ func (message Message) ExpungeContent(
 		nil,
 	)
 	return err
+}
+
+// Delete the payloads from the given messages under the current application
+//
+// Useful in cases when a message was accidentally sent with sensitive content.
+// A message can't be replayed or resent once its payload has been deleted
+// (or has expired).
+func (message Message) BulkExpungeContent(
+	ctx context.Context,
+	appId string,
+	bulkExpungeContentsIn models.BulkExpungeContentsIn,
+	o *MessageBulkExpungeContentOptions,
+) (*models.BulkExpungeContentsOut, error) {
+	var err error
+	pathMap := map[string]string{
+		"app_id": appId,
+	}
+	headerMap := map[string]string{}
+	if o == nil {
+		opts := MessageBulkExpungeContentOptions{}
+		o = &opts
+	}
+	internal.SerializeParamToMap("idempotency-key", o.IdempotencyKey, headerMap, &err)
+	if err != nil {
+		return nil, err
+	}
+	return internal.ExecuteRequest[models.BulkExpungeContentsIn, models.BulkExpungeContentsOut](
+		ctx,
+		message.client,
+		"POST",
+		"/api/v1/app/{app_id}/msg/bulk-expunge",
+		pathMap,
+		nil,
+		headerMap,
+		&bulkExpungeContentsIn,
+	)
 }
 
 // Delete all message payloads for the application.

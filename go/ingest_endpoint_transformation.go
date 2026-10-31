@@ -4,8 +4,8 @@ package svix
 import (
 	"context"
 
-	"github.com/svix/svix-webhooks/go/internal"
-	"github.com/svix/svix-webhooks/go/models"
+	"github.com/svix/svix-webhooks/v2/go/internal"
+	"github.com/svix/svix-webhooks/v2/go/models"
 )
 
 type IngestEndpointTransformation struct {
@@ -17,7 +17,7 @@ func newIngestEndpointTransformation(client *internal.SvixHttpClient) IngestEndp
 }
 
 // Get the transformation code associated with this ingest endpoint.
-func (ingestEndpointTransformation IngestEndpointTransformation) Transformation(
+func (ingestEndpointTransformation IngestEndpointTransformation) Get(
 	ctx context.Context,
 	sourceId string,
 	endpointId string,

@@ -11,12 +11,15 @@ import (
 //   - "generic-webhook": No config needed (nil or just ignore the config field)
 //   - "adobe-sign": Use AdobeSignConfigOut
 //   - "airwallex": Use AirwallexConfigOut
+//   - "ascend": Use AscendConfigOut
+//   - "bitbucket": Use BitbucketConfigOut
 //   - "checkbook": Use CheckbookConfigOut
 //   - "cron": Use CronConfig
 //   - "docusign": Use DocusignConfigOut
 //   - "easypost": Use EasypostConfigOut
 //   - "github": Use GithubConfigOut
 //   - "hubspot": Use HubspotConfigOut
+//   - "merge": Use MergeConfigOut
 //   - "meta": Use MetaConfigOut
 //   - "nango": Use NangoConfigOut
 //   - "openclaw": Use OpenClawConfigOut
@@ -31,6 +34,7 @@ import (
 //   - "beehiiv","brex","clerk","guesty","incident-io","lithic","nash","psi-fi","pleo","replicate","resend","safebase","sardine","stych","svix","open-ai","render": Use SvixConfigOut
 //   - "tailscale": Use TailscaleConfigOut
 //   - "telnyx": Use TelnyxConfigOut
+//   - "tricentis-qtest": Use TricentisQtestConfigOut
 //   - "vapi": Use VapiConfigOut
 //   - "veriff": Use VeriffConfigOut
 //   - "vgs": Use VgsConfigOut
@@ -53,7 +57,9 @@ const (
 	IngestSourceOutTypeGenericWebhook IngestSourceOutType = "generic-webhook"
 	IngestSourceOutTypeCron           IngestSourceOutType = "cron"
 	IngestSourceOutTypeAdobeSign      IngestSourceOutType = "adobe-sign"
+	IngestSourceOutTypeAscend         IngestSourceOutType = "ascend"
 	IngestSourceOutTypeBeehiiv        IngestSourceOutType = "beehiiv"
+	IngestSourceOutTypeBitbucket      IngestSourceOutType = "bitbucket"
 	IngestSourceOutTypeBrex           IngestSourceOutType = "brex"
 	IngestSourceOutTypeCheckbook      IngestSourceOutType = "checkbook"
 	IngestSourceOutTypeClerk          IngestSourceOutType = "clerk"
@@ -64,6 +70,7 @@ const (
 	IngestSourceOutTypeHubspot        IngestSourceOutType = "hubspot"
 	IngestSourceOutTypeIncidentIo     IngestSourceOutType = "incident-io"
 	IngestSourceOutTypeLithic         IngestSourceOutType = "lithic"
+	IngestSourceOutTypeMerge          IngestSourceOutType = "merge"
 	IngestSourceOutTypeMeta           IngestSourceOutType = "meta"
 	IngestSourceOutTypeNango          IngestSourceOutType = "nango"
 	IngestSourceOutTypeNash           IngestSourceOutType = "nash"
@@ -87,6 +94,7 @@ const (
 	IngestSourceOutTypeZoom           IngestSourceOutType = "zoom"
 	IngestSourceOutTypeTailscale      IngestSourceOutType = "tailscale"
 	IngestSourceOutTypeTelnyx         IngestSourceOutType = "telnyx"
+	IngestSourceOutTypeTricentisQtest IngestSourceOutType = "tricentis-qtest"
 	IngestSourceOutTypeVapi           IngestSourceOutType = "vapi"
 	IngestSourceOutTypeOpenAi         IngestSourceOutType = "open-ai"
 	IngestSourceOutTypeRender         IngestSourceOutType = "render"
@@ -99,33 +107,37 @@ type IngestSourceOutConfig interface {
 	isIngestSourceOutConfig()
 }
 
-func (emptyMap) isIngestSourceOutConfig()           {}
-func (CronConfig) isIngestSourceOutConfig()         {}
-func (AdobeSignConfigOut) isIngestSourceOutConfig() {}
-func (SvixConfigOut) isIngestSourceOutConfig()      {}
-func (CheckbookConfigOut) isIngestSourceOutConfig() {}
-func (DocusignConfigOut) isIngestSourceOutConfig()  {}
-func (EasypostConfigOut) isIngestSourceOutConfig()  {}
-func (GithubConfigOut) isIngestSourceOutConfig()    {}
-func (HubspotConfigOut) isIngestSourceOutConfig()   {}
-func (MetaConfigOut) isIngestSourceOutConfig()      {}
-func (NangoConfigOut) isIngestSourceOutConfig()     {}
-func (OpenClawConfigOut) isIngestSourceOutConfig()  {}
-func (OrumIoConfigOut) isIngestSourceOutConfig()    {}
-func (PandaDocConfigOut) isIngestSourceOutConfig()  {}
-func (PortIoConfigOut) isIngestSourceOutConfig()    {}
-func (RutterConfigOut) isIngestSourceOutConfig()    {}
-func (SegmentConfigOut) isIngestSourceOutConfig()   {}
-func (ShopifyConfigOut) isIngestSourceOutConfig()   {}
-func (SlackConfigOut) isIngestSourceOutConfig()     {}
-func (StripeConfigOut) isIngestSourceOutConfig()    {}
-func (ZoomConfigOut) isIngestSourceOutConfig()      {}
-func (TailscaleConfigOut) isIngestSourceOutConfig() {}
-func (TelnyxConfigOut) isIngestSourceOutConfig()    {}
-func (VapiConfigOut) isIngestSourceOutConfig()      {}
-func (VeriffConfigOut) isIngestSourceOutConfig()    {}
-func (AirwallexConfigOut) isIngestSourceOutConfig() {}
-func (VgsConfigOut) isIngestSourceOutConfig()       {}
+func (emptyMap) isIngestSourceOutConfig()                {}
+func (CronConfig) isIngestSourceOutConfig()              {}
+func (AdobeSignConfigOut) isIngestSourceOutConfig()      {}
+func (AscendConfigOut) isIngestSourceOutConfig()         {}
+func (SvixConfigOut) isIngestSourceOutConfig()           {}
+func (BitbucketConfigOut) isIngestSourceOutConfig()      {}
+func (CheckbookConfigOut) isIngestSourceOutConfig()      {}
+func (DocusignConfigOut) isIngestSourceOutConfig()       {}
+func (EasypostConfigOut) isIngestSourceOutConfig()       {}
+func (GithubConfigOut) isIngestSourceOutConfig()         {}
+func (HubspotConfigOut) isIngestSourceOutConfig()        {}
+func (MergeConfigOut) isIngestSourceOutConfig()          {}
+func (MetaConfigOut) isIngestSourceOutConfig()           {}
+func (NangoConfigOut) isIngestSourceOutConfig()          {}
+func (OpenClawConfigOut) isIngestSourceOutConfig()       {}
+func (OrumIoConfigOut) isIngestSourceOutConfig()         {}
+func (PandaDocConfigOut) isIngestSourceOutConfig()       {}
+func (PortIoConfigOut) isIngestSourceOutConfig()         {}
+func (RutterConfigOut) isIngestSourceOutConfig()         {}
+func (SegmentConfigOut) isIngestSourceOutConfig()        {}
+func (ShopifyConfigOut) isIngestSourceOutConfig()        {}
+func (SlackConfigOut) isIngestSourceOutConfig()          {}
+func (StripeConfigOut) isIngestSourceOutConfig()         {}
+func (ZoomConfigOut) isIngestSourceOutConfig()           {}
+func (TailscaleConfigOut) isIngestSourceOutConfig()      {}
+func (TelnyxConfigOut) isIngestSourceOutConfig()         {}
+func (TricentisQtestConfigOut) isIngestSourceOutConfig() {}
+func (VapiConfigOut) isIngestSourceOutConfig()           {}
+func (VeriffConfigOut) isIngestSourceOutConfig()         {}
+func (AirwallexConfigOut) isIngestSourceOutConfig()      {}
+func (VgsConfigOut) isIngestSourceOutConfig()            {}
 
 func (i *IngestSourceOut) UnmarshalJSON(data []byte) error {
 	type Alias IngestSourceOut
@@ -147,6 +159,14 @@ func (i *IngestSourceOut) UnmarshalJSON(data []byte) error {
 		i.Config = c
 	case "airwallex":
 		var c AirwallexConfigOut
+		err = json.Unmarshal(aux.Config, &c)
+		i.Config = c
+	case "ascend":
+		var c AscendConfigOut
+		err = json.Unmarshal(aux.Config, &c)
+		i.Config = c
+	case "bitbucket":
+		var c BitbucketConfigOut
 		err = json.Unmarshal(aux.Config, &c)
 		i.Config = c
 	case "checkbook":
@@ -171,6 +191,10 @@ func (i *IngestSourceOut) UnmarshalJSON(data []byte) error {
 		i.Config = c
 	case "hubspot":
 		var c HubspotConfigOut
+		err = json.Unmarshal(aux.Config, &c)
+		i.Config = c
+	case "merge":
+		var c MergeConfigOut
 		err = json.Unmarshal(aux.Config, &c)
 		i.Config = c
 	case "meta":
@@ -229,6 +253,10 @@ func (i *IngestSourceOut) UnmarshalJSON(data []byte) error {
 		var c TelnyxConfigOut
 		err = json.Unmarshal(aux.Config, &c)
 		i.Config = c
+	case "tricentis-qtest":
+		var c TricentisQtestConfigOut
+		err = json.Unmarshal(aux.Config, &c)
+		i.Config = c
 	case "vapi":
 		var c VapiConfigOut
 		err = json.Unmarshal(aux.Config, &c)
@@ -268,7 +296,9 @@ var IngestSourceOutTypeFromString = map[string]IngestSourceOutType{
 	"generic-webhook": IngestSourceOutTypeGenericWebhook,
 	"cron":            IngestSourceOutTypeCron,
 	"adobe-sign":      IngestSourceOutTypeAdobeSign,
+	"ascend":          IngestSourceOutTypeAscend,
 	"beehiiv":         IngestSourceOutTypeBeehiiv,
+	"bitbucket":       IngestSourceOutTypeBitbucket,
 	"brex":            IngestSourceOutTypeBrex,
 	"checkbook":       IngestSourceOutTypeCheckbook,
 	"clerk":           IngestSourceOutTypeClerk,
@@ -279,6 +309,7 @@ var IngestSourceOutTypeFromString = map[string]IngestSourceOutType{
 	"hubspot":         IngestSourceOutTypeHubspot,
 	"incident-io":     IngestSourceOutTypeIncidentIo,
 	"lithic":          IngestSourceOutTypeLithic,
+	"merge":           IngestSourceOutTypeMerge,
 	"meta":            IngestSourceOutTypeMeta,
 	"nango":           IngestSourceOutTypeNango,
 	"nash":            IngestSourceOutTypeNash,
@@ -302,6 +333,7 @@ var IngestSourceOutTypeFromString = map[string]IngestSourceOutType{
 	"zoom":            IngestSourceOutTypeZoom,
 	"tailscale":       IngestSourceOutTypeTailscale,
 	"telnyx":          IngestSourceOutTypeTelnyx,
+	"tricentis-qtest": IngestSourceOutTypeTricentisQtest,
 	"vapi":            IngestSourceOutTypeVapi,
 	"open-ai":         IngestSourceOutTypeOpenAi,
 	"render":          IngestSourceOutTypeRender,

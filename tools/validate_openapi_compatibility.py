@@ -554,7 +554,16 @@ class OpenAPI:
     def parse(cls, json: dict):
         self = cls()
         for name, value in json.get("components", {}).get("schemas", {}).items():
-            self.components_schemas[name] = Schema.parse(value)
+            # These schemas are not meant to be part of the spec,
+            # and are not referenced anywhere.
+            # Seems like a waste of time to support them.
+            #if name in ["GetMetricsOut", "MetricOut"]:
+            #    continue
+
+            try:
+                self.components_schemas[name] = Schema.parse(value)
+            except Exception as exc:
+                raise ValueError(f"Invalid component {name}") from exc
         for path, methods in json.get("paths", {}).items():
             for method, props in methods.items():
                 self.paths.setdefault(path, {})[method] = Operation.parse(

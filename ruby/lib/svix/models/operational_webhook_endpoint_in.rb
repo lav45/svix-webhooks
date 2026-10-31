@@ -20,8 +20,19 @@ module Svix
     # It is recommended to not set this and let the server generate the secret.
     attr_accessor :secret
     attr_accessor :metadata
+    attr_accessor :headers
 
-    ALL_FIELD ||= ["url", "description", "throttle_rate", "uid", "disabled", "event_types", "secret", "metadata"].freeze
+    ALL_FIELD ||= [
+      "url",
+      "description",
+      "throttle_rate",
+      "uid",
+      "disabled",
+      "event_types",
+      "secret",
+      "metadata",
+      "headers"
+    ].freeze
     private_constant :ALL_FIELD
 
     def initialize(attributes = {})
@@ -53,26 +64,28 @@ module Svix
       attrs["event_types"] = attributes["eventTypes"]
       attrs["secret"] = attributes["secret"]
       attrs["metadata"] = attributes["metadata"]
+      attrs["headers"] = attributes["headers"]
       new(attrs)
     end
 
     def serialize
       out = Hash.new
-      out["url"] = Svix::serialize_primitive(@url) if @url
-      out["description"] = Svix::serialize_primitive(@description) if @description
-      out["throttleRate"] = Svix::serialize_primitive(@throttle_rate) if @throttle_rate
-      out["uid"] = Svix::serialize_primitive(@uid) if @uid
-      out["disabled"] = Svix::serialize_primitive(@disabled) if @disabled
-      out["eventTypes"] = Svix::serialize_primitive(@event_types) if @event_types
-      out["secret"] = Svix::serialize_primitive(@secret) if @secret
-      out["metadata"] = Svix::serialize_primitive(@metadata) if @metadata
+      out["url"] = Svix::serialize_primitive(@url) unless @url.nil?
+      out["description"] = Svix::serialize_primitive(@description) unless @description.nil?
+      out["throttleRate"] = Svix::serialize_primitive(@throttle_rate) unless @throttle_rate.nil?
+      out["uid"] = Svix::serialize_primitive(@uid) unless @uid.nil?
+      out["disabled"] = Svix::serialize_primitive(@disabled) unless @disabled.nil?
+      out["eventTypes"] = Svix::serialize_primitive(@event_types) unless @event_types.nil?
+      out["secret"] = Svix::serialize_primitive(@secret) unless @secret.nil?
+      out["metadata"] = Svix::serialize_primitive(@metadata) unless @metadata.nil?
+      out["headers"] = Svix::serialize_primitive(@headers) unless @headers.nil?
       out
     end
 
     # Serializes the object to a json string
     # @return String
-    def to_json
-      JSON.dump(serialize)
+    def to_json(*args)
+      serialize.to_json(*args)
     end
   end
 end

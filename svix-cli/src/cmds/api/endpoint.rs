@@ -105,6 +105,23 @@ impl From<EndpointGetStatsOptions> for svix::api::EndpointGetStatsOptions {
 }
 
 #[derive(Args, Clone)]
+pub struct EndpointGetAttemptStatsOptions {
+    /// Filter the range to data starting from this date.
+    #[arg(long)]
+    pub since: Option<chrono::DateTime<chrono::Utc>>,
+    /// Filter the range to data ending by this date.
+    #[arg(long)]
+    pub until: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+impl From<EndpointGetAttemptStatsOptions> for svix::api::EndpointGetAttemptStatsOptions {
+    fn from(value: EndpointGetAttemptStatsOptions) -> Self {
+        let EndpointGetAttemptStatsOptions { since, until } = value;
+        Self { since, until }
+    }
+}
+
+#[derive(Args, Clone)]
 pub struct EndpointRecoverOptions {
     #[arg(long)]
     pub idempotency_key: Option<String>,
@@ -163,7 +180,8 @@ pub enum EndpointCommands {
     \"eventTypes\": [\"user.signup\",\"user.deleted\"],
     \"channels\": [\"project_123\",\"group_2\"],
     \"createdAt\": \"2030-01-01T00:00:00Z\",
-    \"updatedAt\": \"2030-01-01T00:00:00Z\"
+    \"updatedAt\": \"2030-01-01T00:00:00Z\",
+    \"expiry\": \"2030-01-01T00:00:00Z\"
   }],
   \"iterator\": \"iterator\",
   \"prevIterator\": \"-iterator\",
@@ -212,7 +230,8 @@ pub enum EndpointCommands {
   \"eventTypes\": [\"user.signup\",\"user.deleted\"],
   \"channels\": [\"project_123\",\"group_2\"],
   \"createdAt\": \"2030-01-01T00:00:00Z\",
-  \"updatedAt\": \"2030-01-01T00:00:00Z\"
+  \"updatedAt\": \"2030-01-01T00:00:00Z\",
+  \"expiry\": \"2030-01-01T00:00:00Z\"
 }\n")]
     Create {
         app_id: String,
@@ -241,7 +260,8 @@ pub enum EndpointCommands {
   \"eventTypes\": [\"user.signup\",\"user.deleted\"],
   \"channels\": [\"project_123\",\"group_2\"],
   \"createdAt\": \"2030-01-01T00:00:00Z\",
-  \"updatedAt\": \"2030-01-01T00:00:00Z\"
+  \"updatedAt\": \"2030-01-01T00:00:00Z\",
+  \"expiry\": \"2030-01-01T00:00:00Z\"
 }\n")]
     Get {
         app_id: String,
@@ -278,7 +298,8 @@ pub enum EndpointCommands {
   \"eventTypes\": [\"user.signup\",\"user.deleted\"],
   \"channels\": [\"project_123\",\"group_2\"],
   \"createdAt\": \"2030-01-01T00:00:00Z\",
-  \"updatedAt\": \"2030-01-01T00:00:00Z\"
+  \"updatedAt\": \"2030-01-01T00:00:00Z\",
+  \"expiry\": \"2030-01-01T00:00:00Z\"
 }\n")]
     Upsert {
         app_id: String,
@@ -329,7 +350,8 @@ pub enum EndpointCommands {
   \"eventTypes\": [\"user.signup\",\"user.deleted\"],
   \"channels\": [\"project_123\",\"group_2\"],
   \"createdAt\": \"2030-01-01T00:00:00Z\",
-  \"updatedAt\": \"2030-01-01T00:00:00Z\"
+  \"updatedAt\": \"2030-01-01T00:00:00Z\",
+  \"expiry\": \"2030-01-01T00:00:00Z\"
 }\n")]
     Patch {
         app_id: String,
@@ -371,6 +393,9 @@ pub enum EndpointCommands {
 {
   \"key\": \"whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oD\",
   \"gracePeriodSeconds\": 123
+}\n\nExample response:
+{
+  \"key\": \"whsec_C2FVsBQIhrscChlQIMV+b5sSYspob7oD\"
 }\n")]
     RotateSecret {
         app_id: String,
@@ -555,6 +580,29 @@ pub enum EndpointCommands {
         #[clap(flatten)]
         options: EndpointGetStatsOptions,
     },
+    /// Get basic statistics about attempted deliveries for the endpoint.
+    ///
+    /// Time windows are always rounded to hour granularity
+    #[command(help_template = concat!(
+            "{about-with-newline}\n",
+            "{usage-heading} {usage}\n\n",
+            "Example: svix endpoint get-attempt-stats app_abc000000000000000000000000 ep_abc000000000000000000000000\n",
+            "{after-help}",
+            "\n",
+            "{all-args}",
+        ))]
+    #[command(after_help = "Example response:
+{
+  \"success\": 123,
+  \"fail\": 123,
+  \"canceled\": 123
+}\n")]
+    GetAttemptStats {
+        app_id: String,
+        id: String,
+        #[clap(flatten)]
+        options: EndpointGetAttemptStatsOptions,
+    },
     /// Resend all failed messages since a given time.
     ///
     /// Messages that were sent successfully, even if failed initially, are not resent.
@@ -608,7 +656,8 @@ pub enum EndpointCommands {
     #[command(after_help = "Example body:
 {
   \"eventType\": \"user.signup\",
-  \"exampleIndex\": 123
+  \"exampleIndex\": 123,
+  \"payload\": {\"key\": \"...\"}
 }\n\nExample response:
 {
   \"eventId\": \"unique-identifier\",
@@ -716,7 +765,7 @@ impl EndpointCommands {
                 endpoint_secret_rotate_in,
                 options,
             } => {
-                client
+                let resp = client
                     .endpoint()
                     .rotate_secret(
                         app_id,
@@ -725,6 +774,7 @@ impl EndpointCommands {
                         Some(options.into()),
                     )
                     .await?;
+                crate::json::print_json_output(&resp, color_mode)?;
             }
             Self::GetHeaders { app_id, id } => {
                 let resp = client.endpoint().get_headers(app_id, id).await?;
@@ -790,6 +840,17 @@ impl EndpointCommands {
                     .await?;
                 crate::json::print_json_output(&resp, color_mode)?;
             }
+            Self::GetAttemptStats {
+                app_id,
+                id,
+                options,
+            } => {
+                let resp = client
+                    .endpoint()
+                    .get_attempt_stats(app_id, id, Some(options.into()))
+                    .await?;
+                crate::json::print_json_output(&resp, color_mode)?;
+            }
             Self::Recover {
                 app_id,
                 id,
@@ -824,7 +885,7 @@ impl EndpointCommands {
                 id,
                 endpoint_transformation_in,
             } => {
-                #[allow(deprecated)]
+                #[expect(deprecated)]
                 client
                     .endpoint()
                     .transformation_partial_update(

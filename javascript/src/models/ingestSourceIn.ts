@@ -1,12 +1,15 @@
 // this file is @generated
 import { type AdobeSignConfig, AdobeSignConfigSerializer } from "./adobeSignConfig";
 import { type AirwallexConfig, AirwallexConfigSerializer } from "./airwallexConfig";
+import { type AscendConfig, AscendConfigSerializer } from "./ascendConfig";
+import { type BitbucketConfig, BitbucketConfigSerializer } from "./bitbucketConfig";
 import { type CheckbookConfig, CheckbookConfigSerializer } from "./checkbookConfig";
 import { type CronConfig, CronConfigSerializer } from "./cronConfig";
 import { type DocusignConfig, DocusignConfigSerializer } from "./docusignConfig";
 import { type EasypostConfig, EasypostConfigSerializer } from "./easypostConfig";
 import { type GithubConfig, GithubConfigSerializer } from "./githubConfig";
 import { type HubspotConfig, HubspotConfigSerializer } from "./hubspotConfig";
+import { type MergeConfig, MergeConfigSerializer } from "./mergeConfig";
 import { type MetaConfig, MetaConfigSerializer } from "./metaConfig";
 import { type NangoConfig, NangoConfigSerializer } from "./nangoConfig";
 import { type OpenClawConfig, OpenClawConfigSerializer } from "./openClawConfig";
@@ -21,6 +24,10 @@ import { type StripeConfig, StripeConfigSerializer } from "./stripeConfig";
 import { type SvixConfig, SvixConfigSerializer } from "./svixConfig";
 import { type TailscaleConfig, TailscaleConfigSerializer } from "./tailscaleConfig";
 import { type TelnyxConfig, TelnyxConfigSerializer } from "./telnyxConfig";
+import {
+  type TricentisQtestConfig,
+  TricentisQtestConfigSerializer,
+} from "./tricentisQtestConfig";
 import { type VapiConfig, VapiConfigSerializer } from "./vapiConfig";
 import { type VeriffConfig, VeriffConfigSerializer } from "./veriffConfig";
 import { type VgsConfig, VgsConfigSerializer } from "./vgsConfig";
@@ -51,9 +58,19 @@ interface IngestSourceInAdobeSign {
   config: AdobeSignConfig;
 }
 
+interface IngestSourceInAscend {
+  type: "ascend";
+  config: AscendConfig;
+}
+
 interface IngestSourceInBeehiiv {
   type: "beehiiv";
   config: SvixConfig;
+}
+
+interface IngestSourceInBitbucket {
+  type: "bitbucket";
+  config: BitbucketConfig;
 }
 
 interface IngestSourceInBrex {
@@ -104,6 +121,11 @@ interface IngestSourceInIncidentIo {
 interface IngestSourceInLithic {
   type: "lithic";
   config: SvixConfig;
+}
+
+interface IngestSourceInMerge {
+  type: "merge";
+  config: MergeConfig;
 }
 
 interface IngestSourceInMeta {
@@ -221,6 +243,11 @@ interface IngestSourceInTelnyx {
   config: TelnyxConfig;
 }
 
+interface IngestSourceInTricentisQtest {
+  type: "tricentis-qtest";
+  config: TricentisQtestConfig;
+}
+
 interface IngestSourceInVapi {
   type: "vapi";
   config: VapiConfig;
@@ -256,7 +283,9 @@ export type IngestSourceIn = _IngestSourceInFields &
     | IngestSourceInGenericWebhook
     | IngestSourceInCron
     | IngestSourceInAdobeSign
+    | IngestSourceInAscend
     | IngestSourceInBeehiiv
+    | IngestSourceInBitbucket
     | IngestSourceInBrex
     | IngestSourceInCheckbook
     | IngestSourceInClerk
@@ -267,6 +296,7 @@ export type IngestSourceIn = _IngestSourceInFields &
     | IngestSourceInHubspot
     | IngestSourceInIncidentIo
     | IngestSourceInLithic
+    | IngestSourceInMerge
     | IngestSourceInMeta
     | IngestSourceInNango
     | IngestSourceInNash
@@ -290,6 +320,7 @@ export type IngestSourceIn = _IngestSourceInFields &
     | IngestSourceInZoom
     | IngestSourceInTailscale
     | IngestSourceInTelnyx
+    | IngestSourceInTricentisQtest
     | IngestSourceInVapi
     | IngestSourceInOpenAi
     | IngestSourceInRender
@@ -310,8 +341,12 @@ export const IngestSourceInSerializer = {
           return CronConfigSerializer._fromJsonObject(object["config"]);
         case "adobe-sign":
           return AdobeSignConfigSerializer._fromJsonObject(object["config"]);
+        case "ascend":
+          return AscendConfigSerializer._fromJsonObject(object["config"]);
         case "beehiiv":
           return SvixConfigSerializer._fromJsonObject(object["config"]);
+        case "bitbucket":
+          return BitbucketConfigSerializer._fromJsonObject(object["config"]);
         case "brex":
           return SvixConfigSerializer._fromJsonObject(object["config"]);
         case "checkbook":
@@ -332,6 +367,8 @@ export const IngestSourceInSerializer = {
           return SvixConfigSerializer._fromJsonObject(object["config"]);
         case "lithic":
           return SvixConfigSerializer._fromJsonObject(object["config"]);
+        case "merge":
+          return MergeConfigSerializer._fromJsonObject(object["config"]);
         case "meta":
           return MetaConfigSerializer._fromJsonObject(object["config"]);
         case "nango":
@@ -378,6 +415,8 @@ export const IngestSourceInSerializer = {
           return TailscaleConfigSerializer._fromJsonObject(object["config"]);
         case "telnyx":
           return TelnyxConfigSerializer._fromJsonObject(object["config"]);
+        case "tricentis-qtest":
+          return TricentisQtestConfigSerializer._fromJsonObject(object["config"]);
         case "vapi":
           return VapiConfigSerializer._fromJsonObject(object["config"]);
         case "open-ai":
@@ -417,8 +456,14 @@ export const IngestSourceInSerializer = {
       case "adobe-sign":
         config = AdobeSignConfigSerializer._toJsonObject(self.config);
         break;
+      case "ascend":
+        config = AscendConfigSerializer._toJsonObject(self.config);
+        break;
       case "beehiiv":
         config = SvixConfigSerializer._toJsonObject(self.config);
+        break;
+      case "bitbucket":
+        config = BitbucketConfigSerializer._toJsonObject(self.config);
         break;
       case "brex":
         config = SvixConfigSerializer._toJsonObject(self.config);
@@ -449,6 +494,9 @@ export const IngestSourceInSerializer = {
         break;
       case "lithic":
         config = SvixConfigSerializer._toJsonObject(self.config);
+        break;
+      case "merge":
+        config = MergeConfigSerializer._toJsonObject(self.config);
         break;
       case "meta":
         config = MetaConfigSerializer._toJsonObject(self.config);
@@ -518,6 +566,9 @@ export const IngestSourceInSerializer = {
         break;
       case "telnyx":
         config = TelnyxConfigSerializer._toJsonObject(self.config);
+        break;
+      case "tricentis-qtest":
+        config = TricentisQtestConfigSerializer._toJsonObject(self.config);
         break;
       case "vapi":
         config = VapiConfigSerializer._toJsonObject(self.config);

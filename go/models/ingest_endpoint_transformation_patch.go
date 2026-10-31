@@ -4,12 +4,13 @@ package models
 import (
 	"encoding/json"
 
-	"github.com/svix/svix-webhooks/go/utils"
+	"github.com/svix/svix-webhooks/v2/go/utils"
 )
 
 type IngestEndpointTransformationPatch struct {
-	Code    utils.Nullable[string] `json:"code"`
-	Enabled *bool                  `json:"enabled,omitempty"`
+	Code      utils.Nullable[string]            `json:"code"`
+	Enabled   *bool                             `json:"enabled,omitempty"`
+	Variables utils.Nullable[map[string]string] `json:"variables"`
 }
 
 func (o IngestEndpointTransformationPatch) MarshalJSON() ([]byte, error) {
@@ -19,6 +20,9 @@ func (o IngestEndpointTransformationPatch) MarshalJSON() ([]byte, error) {
 	}
 	if o.Enabled != nil {
 		toSerialize["enabled"] = o.Enabled
+	}
+	if o.Variables.IsSet() {
+		toSerialize["variables"] = o.Variables
 	}
 	return json.Marshal(toSerialize)
 }

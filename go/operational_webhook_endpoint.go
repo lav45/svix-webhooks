@@ -4,8 +4,8 @@ package svix
 import (
 	"context"
 
-	"github.com/svix/svix-webhooks/go/internal"
-	"github.com/svix/svix-webhooks/go/models"
+	"github.com/svix/svix-webhooks/v2/go/internal"
+	"github.com/svix/svix-webhooks/v2/go/models"
 )
 
 type OperationalWebhookEndpoint struct {
@@ -179,7 +179,7 @@ func (operationalWebhookEndpoint OperationalWebhookEndpoint) GetSecret(
 
 // Rotates an operational webhook endpoint's signing secret.
 //
-// The previous secret will remain valid for the next 24 hours.
+// The previous secret will remain valid for the specified grace period (default 24 hours).
 func (operationalWebhookEndpoint OperationalWebhookEndpoint) RotateSecret(
 	ctx context.Context,
 	endpointId string,

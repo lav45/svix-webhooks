@@ -6,6 +6,8 @@ from typing_extensions import Self
 
 from .adobe_sign_config import AdobeSignConfig
 from .airwallex_config import AirwallexConfig
+from .ascend_config import AscendConfig
+from .bitbucket_config import BitbucketConfig
 from .checkbook_config import CheckbookConfig
 from .common import BaseModel
 from .cron_config import CronConfig
@@ -13,6 +15,7 @@ from .docusign_config import DocusignConfig
 from .easypost_config import EasypostConfig
 from .github_config import GithubConfig
 from .hubspot_config import HubspotConfig
+from .merge_config import MergeConfig
 from .meta_config import MetaConfig
 from .nango_config import NangoConfig
 from .open_claw_config import OpenClawConfig
@@ -27,6 +30,7 @@ from .stripe_config import StripeConfig
 from .svix_config import SvixConfig
 from .tailscale_config import TailscaleConfig
 from .telnyx_config import TelnyxConfig
+from .tricentis_qtest_config import TricentisQtestConfig
 from .vapi_config import VapiConfig
 from .veriff_config import VeriffConfig
 from .vgs_config import VgsConfig
@@ -45,7 +49,9 @@ class IngestSourceIn(BaseModel):
         t.Literal["generic-webhook"],
         t.Literal["cron"],
         t.Literal["adobe-sign"],
+        t.Literal["ascend"],
         t.Literal["beehiiv"],
+        t.Literal["bitbucket"],
         t.Literal["brex"],
         t.Literal["checkbook"],
         t.Literal["clerk"],
@@ -56,6 +62,7 @@ class IngestSourceIn(BaseModel):
         t.Literal["hubspot"],
         t.Literal["incident-io"],
         t.Literal["lithic"],
+        t.Literal["merge"],
         t.Literal["meta"],
         t.Literal["nango"],
         t.Literal["nash"],
@@ -79,6 +86,7 @@ class IngestSourceIn(BaseModel):
         t.Literal["zoom"],
         t.Literal["tailscale"],
         t.Literal["telnyx"],
+        t.Literal["tricentis-qtest"],
         t.Literal["vapi"],
         t.Literal["open-ai"],
         t.Literal["render"],
@@ -90,12 +98,15 @@ class IngestSourceIn(BaseModel):
         t.Dict[str, t.Any],
         CronConfig,
         AdobeSignConfig,
+        AscendConfig,
         SvixConfig,
+        BitbucketConfig,
         CheckbookConfig,
         DocusignConfig,
         EasypostConfig,
         GithubConfig,
         HubspotConfig,
+        MergeConfig,
         MetaConfig,
         NangoConfig,
         OpenClawConfig,
@@ -110,6 +121,7 @@ class IngestSourceIn(BaseModel):
         ZoomConfig,
         TailscaleConfig,
         TelnyxConfig,
+        TricentisQtestConfig,
         VapiConfig,
         VeriffConfig,
         AirwallexConfig,
@@ -132,8 +144,12 @@ class IngestSourceIn(BaseModel):
             output.config = CronConfig.model_validate(data.get("config", {}))
         elif output.type == "adobe-sign":
             output.config = AdobeSignConfig.model_validate(data.get("config", {}))
+        elif output.type == "ascend":
+            output.config = AscendConfig.model_validate(data.get("config", {}))
         elif output.type == "beehiiv":
             output.config = SvixConfig.model_validate(data.get("config", {}))
+        elif output.type == "bitbucket":
+            output.config = BitbucketConfig.model_validate(data.get("config", {}))
         elif output.type == "brex":
             output.config = SvixConfig.model_validate(data.get("config", {}))
         elif output.type == "checkbook":
@@ -154,6 +170,8 @@ class IngestSourceIn(BaseModel):
             output.config = SvixConfig.model_validate(data.get("config", {}))
         elif output.type == "lithic":
             output.config = SvixConfig.model_validate(data.get("config", {}))
+        elif output.type == "merge":
+            output.config = MergeConfig.model_validate(data.get("config", {}))
         elif output.type == "meta":
             output.config = MetaConfig.model_validate(data.get("config", {}))
         elif output.type == "nango":
@@ -200,6 +218,8 @@ class IngestSourceIn(BaseModel):
             output.config = TailscaleConfig.model_validate(data.get("config", {}))
         elif output.type == "telnyx":
             output.config = TelnyxConfig.model_validate(data.get("config", {}))
+        elif output.type == "tricentis-qtest":
+            output.config = TricentisQtestConfig.model_validate(data.get("config", {}))
         elif output.type == "vapi":
             output.config = VapiConfig.model_validate(data.get("config", {}))
         elif output.type == "open-ai":

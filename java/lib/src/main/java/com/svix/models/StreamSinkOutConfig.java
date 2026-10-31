@@ -32,6 +32,16 @@ public abstract class StreamSinkOutConfig {
         }
     }
 
+    @ToString
+    @EqualsAndHashCode(callSuper = false)
+    @VariantName("pollingEndpoint")
+    public static class PollingEndpoint extends StreamSinkOutConfig {
+        @Override
+        public JsonNode toJsonNode() {
+            return Utils.getObjectMapper().createObjectNode();
+        }
+    }
+
     @Getter
     @Setter
     @AllArgsConstructor
@@ -39,7 +49,7 @@ public abstract class StreamSinkOutConfig {
     @EqualsAndHashCode(callSuper = false)
     @VariantName("azureBlobStorage")
     public static class AzureBlobStorage extends StreamSinkOutConfig {
-        private final AzureBlobStorageConfig azureBlobStorage;
+        private final AzureBlobStorageConfigOut azureBlobStorage;
 
         @Override
         public JsonNode toJsonNode() {
@@ -54,7 +64,7 @@ public abstract class StreamSinkOutConfig {
     @EqualsAndHashCode(callSuper = false)
     @VariantName("otelTracing")
     public static class OtelTracing extends StreamSinkOutConfig {
-        private final SinkOtelV1Config otelTracing;
+        private final OtelTracingConfigOut otelTracing;
 
         @Override
         public JsonNode toJsonNode() {
@@ -69,7 +79,7 @@ public abstract class StreamSinkOutConfig {
     @EqualsAndHashCode(callSuper = false)
     @VariantName("http")
     public static class Http extends StreamSinkOutConfig {
-        private final SinkHttpConfig http;
+        private final SinkHttpConfigOut http;
 
         @Override
         public JsonNode toJsonNode() {
@@ -84,7 +94,7 @@ public abstract class StreamSinkOutConfig {
     @EqualsAndHashCode(callSuper = false)
     @VariantName("amazonS3")
     public static class AmazonS3 extends StreamSinkOutConfig {
-        private final S3Config amazonS3;
+        private final S3ConfigOut amazonS3;
 
         @Override
         public JsonNode toJsonNode() {
@@ -97,9 +107,24 @@ public abstract class StreamSinkOutConfig {
     @AllArgsConstructor
     @ToString
     @EqualsAndHashCode(callSuper = false)
+    @VariantName("snowflake")
+    public static class Snowflake extends StreamSinkOutConfig {
+        private final SnowflakeConfigOut snowflake;
+
+        @Override
+        public JsonNode toJsonNode() {
+            return Utils.getObjectMapper().valueToTree(snowflake);
+        }
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @ToString
+    @EqualsAndHashCode(callSuper = false)
     @VariantName("googleCloudStorage")
     public static class GoogleCloudStorage extends StreamSinkOutConfig {
-        private final GoogleCloudStorageConfig googleCloudStorage;
+        private final GoogleCloudStorageConfigOut googleCloudStorage;
 
         @Override
         public JsonNode toJsonNode() {
@@ -114,7 +139,7 @@ public abstract class StreamSinkOutConfig {
     @EqualsAndHashCode(callSuper = false)
     @VariantName("googleCloudPubSub")
     public static class GoogleCloudPubSub extends StreamSinkOutConfig {
-        private final GoogleCloudPubSubConfig googleCloudPubSub;
+        private final GoogleCloudPubSubConfigOut googleCloudPubSub;
 
         @Override
         public JsonNode toJsonNode() {
@@ -127,28 +152,13 @@ public abstract class StreamSinkOutConfig {
     @AllArgsConstructor
     @ToString
     @EqualsAndHashCode(callSuper = false)
-    @VariantName("sqs")
-    public static class Sqs extends StreamSinkOutConfig {
-        private final SqsConfig sqs;
+    @VariantName("redshift")
+    public static class Redshift extends StreamSinkOutConfig {
+        private final RedshiftConfigOut redshift;
 
         @Override
         public JsonNode toJsonNode() {
-            return Utils.getObjectMapper().valueToTree(sqs);
-        }
-    }
-
-    @Getter
-    @Setter
-    @AllArgsConstructor
-    @ToString
-    @EqualsAndHashCode(callSuper = false)
-    @VariantName("sns")
-    public static class Sns extends StreamSinkOutConfig {
-        private final SnsConfig sns;
-
-        @Override
-        public JsonNode toJsonNode() {
-            return Utils.getObjectMapper().valueToTree(sns);
+            return Utils.getObjectMapper().valueToTree(redshift);
         }
     }
 
@@ -159,7 +169,7 @@ public abstract class StreamSinkOutConfig {
     @EqualsAndHashCode(callSuper = false)
     @VariantName("bigQuery")
     public static class BigQuery extends StreamSinkOutConfig {
-        private final BigQueryConfig bigQuery;
+        private final BigQueryConfigOut bigQuery;
 
         @Override
         public JsonNode toJsonNode() {
@@ -174,7 +184,7 @@ public abstract class StreamSinkOutConfig {
     @EqualsAndHashCode(callSuper = false)
     @VariantName("clickhouse")
     public static class Clickhouse extends StreamSinkOutConfig {
-        private final ClickhouseConfig clickhouse;
+        private final ClickhouseConfigOut clickhouse;
 
         @Override
         public JsonNode toJsonNode() {
@@ -187,39 +197,9 @@ public abstract class StreamSinkOutConfig {
     @AllArgsConstructor
     @ToString
     @EqualsAndHashCode(callSuper = false)
-    @VariantName("eventBridge")
-    public static class EventBridge extends StreamSinkOutConfig {
-        private final EventBridgeConfig eventBridge;
-
-        @Override
-        public JsonNode toJsonNode() {
-            return Utils.getObjectMapper().valueToTree(eventBridge);
-        }
-    }
-
-    @Getter
-    @Setter
-    @AllArgsConstructor
-    @ToString
-    @EqualsAndHashCode(callSuper = false)
-    @VariantName("snowflake")
-    public static class Snowflake extends StreamSinkOutConfig {
-        private final SnowflakeConfig snowflake;
-
-        @Override
-        public JsonNode toJsonNode() {
-            return Utils.getObjectMapper().valueToTree(snowflake);
-        }
-    }
-
-    @Getter
-    @Setter
-    @AllArgsConstructor
-    @ToString
-    @EqualsAndHashCode(callSuper = false)
     @VariantName("rabbitMq")
     public static class RabbitMq extends StreamSinkOutConfig {
-        private final RabbitMqConfig rabbitMq;
+        private final RabbitMqConfigOut rabbitMq;
 
         @Override
         public JsonNode toJsonNode() {
@@ -232,13 +212,88 @@ public abstract class StreamSinkOutConfig {
     @AllArgsConstructor
     @ToString
     @EqualsAndHashCode(callSuper = false)
-    @VariantName("redshift")
-    public static class Redshift extends StreamSinkOutConfig {
-        private final RedshiftConfig redshift;
+    @VariantName("sqs")
+    public static class Sqs extends StreamSinkOutConfig {
+        private final SqsConfigOut sqs;
 
         @Override
         public JsonNode toJsonNode() {
-            return Utils.getObjectMapper().valueToTree(redshift);
+            return Utils.getObjectMapper().valueToTree(sqs);
+        }
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @ToString
+    @EqualsAndHashCode(callSuper = false)
+    @VariantName("eventBridge")
+    public static class EventBridge extends StreamSinkOutConfig {
+        private final EventBridgeConfigOut eventBridge;
+
+        @Override
+        public JsonNode toJsonNode() {
+            return Utils.getObjectMapper().valueToTree(eventBridge);
+        }
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @ToString
+    @EqualsAndHashCode(callSuper = false)
+    @VariantName("sns")
+    public static class Sns extends StreamSinkOutConfig {
+        private final SnsConfigOut sns;
+
+        @Override
+        public JsonNode toJsonNode() {
+            return Utils.getObjectMapper().valueToTree(sns);
+        }
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @ToString
+    @EqualsAndHashCode(callSuper = false)
+    @VariantName("postgres")
+    public static class Postgres extends StreamSinkOutConfig {
+        private final PostgresConfigOut postgres;
+
+        @Override
+        public JsonNode toJsonNode() {
+            return Utils.getObjectMapper().valueToTree(postgres);
+        }
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @ToString
+    @EqualsAndHashCode(callSuper = false)
+    @VariantName("elasticSearch")
+    public static class ElasticSearch extends StreamSinkOutConfig {
+        private final ElasticSearchConfigOut elasticSearch;
+
+        @Override
+        public JsonNode toJsonNode() {
+            return Utils.getObjectMapper().valueToTree(elasticSearch);
+        }
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @ToString
+    @EqualsAndHashCode(callSuper = false)
+    @VariantName("postHog")
+    public static class PostHog extends StreamSinkOutConfig {
+        private final PostHogConfigOut postHog;
+
+        @Override
+        public JsonNode toJsonNode() {
+            return Utils.getObjectMapper().valueToTree(postHog);
         }
     }
 
@@ -252,26 +307,34 @@ public abstract class StreamSinkOutConfig {
 
     static {
         TY_M.put("poller", c -> new Poller());
+        TY_M.put("pollingEndpoint", c -> new PollingEndpoint());
         TY_M.put(
                 "azureBlobStorage",
-                c -> new AzureBlobStorage(m.convertValue(c, AzureBlobStorageConfig.class)));
-        TY_M.put("otelTracing", c -> new OtelTracing(m.convertValue(c, SinkOtelV1Config.class)));
-        TY_M.put("http", c -> new Http(m.convertValue(c, SinkHttpConfig.class)));
-        TY_M.put("amazonS3", c -> new AmazonS3(m.convertValue(c, S3Config.class)));
+                c -> new AzureBlobStorage(m.convertValue(c, AzureBlobStorageConfigOut.class)));
+        TY_M.put(
+                "otelTracing", c -> new OtelTracing(m.convertValue(c, OtelTracingConfigOut.class)));
+        TY_M.put("http", c -> new Http(m.convertValue(c, SinkHttpConfigOut.class)));
+        TY_M.put("amazonS3", c -> new AmazonS3(m.convertValue(c, S3ConfigOut.class)));
+        TY_M.put("snowflake", c -> new Snowflake(m.convertValue(c, SnowflakeConfigOut.class)));
         TY_M.put(
                 "googleCloudStorage",
-                c -> new GoogleCloudStorage(m.convertValue(c, GoogleCloudStorageConfig.class)));
+                c -> new GoogleCloudStorage(m.convertValue(c, GoogleCloudStorageConfigOut.class)));
         TY_M.put(
                 "googleCloudPubSub",
-                c -> new GoogleCloudPubSub(m.convertValue(c, GoogleCloudPubSubConfig.class)));
-        TY_M.put("sqs", c -> new Sqs(m.convertValue(c, SqsConfig.class)));
-        TY_M.put("sns", c -> new Sns(m.convertValue(c, SnsConfig.class)));
-        TY_M.put("bigQuery", c -> new BigQuery(m.convertValue(c, BigQueryConfig.class)));
-        TY_M.put("clickhouse", c -> new Clickhouse(m.convertValue(c, ClickhouseConfig.class)));
-        TY_M.put("eventBridge", c -> new EventBridge(m.convertValue(c, EventBridgeConfig.class)));
-        TY_M.put("snowflake", c -> new Snowflake(m.convertValue(c, SnowflakeConfig.class)));
-        TY_M.put("rabbitMq", c -> new RabbitMq(m.convertValue(c, RabbitMqConfig.class)));
-        TY_M.put("redshift", c -> new Redshift(m.convertValue(c, RedshiftConfig.class)));
+                c -> new GoogleCloudPubSub(m.convertValue(c, GoogleCloudPubSubConfigOut.class)));
+        TY_M.put("redshift", c -> new Redshift(m.convertValue(c, RedshiftConfigOut.class)));
+        TY_M.put("bigQuery", c -> new BigQuery(m.convertValue(c, BigQueryConfigOut.class)));
+        TY_M.put("clickhouse", c -> new Clickhouse(m.convertValue(c, ClickhouseConfigOut.class)));
+        TY_M.put("rabbitMq", c -> new RabbitMq(m.convertValue(c, RabbitMqConfigOut.class)));
+        TY_M.put("sqs", c -> new Sqs(m.convertValue(c, SqsConfigOut.class)));
+        TY_M.put(
+                "eventBridge", c -> new EventBridge(m.convertValue(c, EventBridgeConfigOut.class)));
+        TY_M.put("sns", c -> new Sns(m.convertValue(c, SnsConfigOut.class)));
+        TY_M.put("postgres", c -> new Postgres(m.convertValue(c, PostgresConfigOut.class)));
+        TY_M.put(
+                "elasticSearch",
+                c -> new ElasticSearch(m.convertValue(c, ElasticSearchConfigOut.class)));
+        TY_M.put("postHog", c -> new PostHog(m.convertValue(c, PostHogConfigOut.class)));
     }
 
     public static StreamSinkOutConfig fromTypeAndConfig(String type, JsonNode config) {

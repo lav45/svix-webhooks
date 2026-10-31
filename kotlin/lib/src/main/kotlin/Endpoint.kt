@@ -2,6 +2,7 @@
 package com.svix.kotlin
 
 import com.svix.kotlin.models.BulkReplayIn
+import com.svix.kotlin.models.EndpointAttemptStats
 import com.svix.kotlin.models.EndpointHeadersIn
 import com.svix.kotlin.models.EndpointHeadersOut
 import com.svix.kotlin.models.EndpointHeadersPatchIn
@@ -42,6 +43,13 @@ data class EndpointReplayMissingOptions(val idempotencyKey: String? = null)
 data class EndpointBulkReplayOptions(val idempotencyKey: String? = null)
 
 data class EndpointGetStatsOptions(
+    /** Filter the range to data starting from this date. */
+    val since: Instant? = null,
+    /** Filter the range to data ending by this date. */
+    val until: Instant? = null,
+)
+
+data class EndpointGetAttemptStatsOptions(
     /** Filter the range to data starting from this date. */
     val since: Instant? = null,
     /** Filter the range to data ending by this date. */
@@ -153,7 +161,7 @@ class Endpoint(private val client: SvixHttpClient) {
         endpointId: String,
         endpointSecretRotateIn: EndpointSecretRotateIn,
         options: EndpointRotateSecretOptions = EndpointRotateSecretOptions(),
-    ) {
+    ): EndpointSecretOut {
         val url =
             client
                 .newUrlBuilder()
@@ -161,7 +169,7 @@ class Endpoint(private val client: SvixHttpClient) {
         val headers = Headers.Builder()
         options.idempotencyKey?.let { headers.add("idempotency-key", it) }
 
-        client.executeRequest<EndpointSecretRotateIn, Boolean>(
+        return client.executeRequest<EndpointSecretRotateIn, EndpointSecretOut>(
             "POST",
             url.build(),
             headers = headers.build(),
@@ -297,6 +305,25 @@ class Endpoint(private val client: SvixHttpClient) {
         options.since?.let { url.addQueryParameter("since", serializeQueryParam(it)) }
         options.until?.let { url.addQueryParameter("until", serializeQueryParam(it)) }
         return client.executeRequest<Any, EndpointStats>("GET", url.build())
+    }
+
+    /**
+     * Get basic statistics about attempted deliveries for the endpoint.
+     *
+     * Time windows are always rounded to hour granularity
+     */
+    suspend fun getAttemptStats(
+        appId: String,
+        endpointId: String,
+        options: EndpointGetAttemptStatsOptions = EndpointGetAttemptStatsOptions(),
+    ): EndpointAttemptStats {
+        val url =
+            client
+                .newUrlBuilder()
+                .encodedPath("/api/v1/app/$appId/endpoint/$endpointId/attempt-stats")
+        options.since?.let { url.addQueryParameter("since", serializeQueryParam(it)) }
+        options.until?.let { url.addQueryParameter("until", serializeQueryParam(it)) }
+        return client.executeRequest<Any, EndpointAttemptStats>("GET", url.build())
     }
 
     /**

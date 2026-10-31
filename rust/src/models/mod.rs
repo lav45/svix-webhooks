@@ -1,12 +1,10 @@
 // this file is @generated
-#![allow(clippy::too_many_arguments)]
 
 mod adobe_sign_config;
 mod adobe_sign_config_out;
 mod aggregate_event_types_out;
 mod airwallex_config;
 mod airwallex_config_out;
-mod amazon_s3_patch_config;
 mod api_token_out;
 mod app_portal_access_in;
 mod app_portal_access_out;
@@ -17,34 +15,61 @@ mod application_in;
 mod application_out;
 mod application_patch;
 mod application_token_expire_in;
+mod archive_status;
+mod ascend_config;
+mod ascend_config_out;
 mod authentication_source;
+mod auto_config_out;
 mod auto_config_sink_type;
-mod azure_blob_storage_config;
-mod azure_blob_storage_patch_config;
+mod auto_config_subscription_out;
+mod azure_blob_storage_config_in;
+mod azure_blob_storage_config_out;
+mod azure_blob_storage_config_patch;
 mod background_task_out;
 mod background_task_status;
 mod background_task_type;
-mod big_query_config;
-mod big_query_patch_config;
+mod big_query_config_in;
+mod big_query_config_out;
+mod big_query_config_patch;
+mod bitbucket_config;
+mod bitbucket_config_out;
+mod bulk_expunge_contents_in;
+mod bulk_expunge_contents_out;
+mod bulk_expunge_status;
 mod bulk_replay_in;
 mod checkbook_config;
 mod checkbook_config_out;
-mod clickhouse_config;
-mod clickhouse_patch_config;
+mod clickhouse_config_in;
+mod clickhouse_config_out;
+mod clickhouse_config_patch;
 mod connector_in;
 mod connector_kind;
 mod connector_out;
 mod connector_patch;
 mod connector_product;
 mod connector_upsert_in;
+mod create_auto_config_subscription_in;
 mod create_stream_events_in;
 mod create_stream_events_out;
 mod cron_config;
+mod destination_in;
+mod destination_out;
+mod destination_patch;
+mod destination_secret_rotate_out;
+mod destination_status;
+mod destination_status_in;
+mod destination_transform_in;
+mod destination_transformation_out;
 mod docusign_config;
 mod docusign_config_out;
 mod easypost_config;
 mod easypost_config_out;
+mod elastic_search_config_in;
+mod elastic_search_config_out;
+mod elastic_search_config_patch;
+mod elastic_search_operation;
 mod empty_response;
+mod endpoint_attempt_stats;
 mod endpoint_headers_in;
 mod endpoint_headers_out;
 mod endpoint_headers_patch_in;
@@ -61,8 +86,9 @@ mod endpoint_transformation_patch;
 mod endpoint_upsert_in;
 mod environment_in;
 mod environment_out;
-mod event_bridge_config;
-mod event_bridge_patch_config;
+mod event_bridge_config_in;
+mod event_bridge_config_out;
+mod event_bridge_config_patch;
 mod event_example_in;
 mod event_in;
 mod event_out;
@@ -76,13 +102,15 @@ mod event_type_out;
 mod event_type_patch;
 mod event_type_upsert_in;
 mod expunge_all_contents_out;
+mod fifo_endpoint_config_in;
 mod github_config;
 mod github_config_out;
-mod google_cloud_pub_sub_config;
-mod google_cloud_pub_sub_patch_config;
-mod google_cloud_storage_config;
-mod google_cloud_storage_patch_config;
-mod http_patch_config;
+mod google_cloud_pub_sub_config_in;
+mod google_cloud_pub_sub_config_out;
+mod google_cloud_pub_sub_config_patch;
+mod google_cloud_storage_config_in;
+mod google_cloud_storage_config_out;
+mod google_cloud_storage_config_patch;
 mod http_sink_headers_patch_in;
 mod hubspot_config;
 mod hubspot_config_out;
@@ -105,6 +133,7 @@ mod integration_update;
 mod list_response_application_out;
 mod list_response_background_task_out;
 mod list_response_connector_out;
+mod list_response_destination_out;
 mod list_response_endpoint_message_out;
 mod list_response_endpoint_out;
 mod list_response_event_type_out;
@@ -118,6 +147,8 @@ mod list_response_operational_webhook_endpoint_out;
 mod list_response_stream_event_type_out;
 mod list_response_stream_out;
 mod list_response_stream_sink_out;
+mod merge_config;
+mod merge_config_out;
 mod message_attempt_out;
 mod message_attempt_trigger_type;
 mod message_endpoint_out;
@@ -143,7 +174,9 @@ mod operational_webhook_endpoint_upsert_in;
 mod ordering;
 mod orum_io_config;
 mod orum_io_config_out;
-mod otel_tracing_patch_config;
+mod otel_tracing_config_in;
+mod otel_tracing_config_out;
+mod otel_tracing_config_patch;
 mod panda_doc_config;
 mod panda_doc_config_out;
 mod poller_v2_commit_in;
@@ -155,40 +188,57 @@ mod polling_endpoint_message_out;
 mod polling_endpoint_out;
 mod port_io_config;
 mod port_io_config_out;
-mod rabbit_mq_config;
-mod rabbit_mq_patch_config;
+mod post_hog_config_in;
+mod post_hog_config_out;
+mod post_hog_config_patch;
+mod postgres_config_in;
+mod postgres_config_out;
+mod postgres_config_patch;
+mod rabbit_mq_config_in;
+mod rabbit_mq_config_out;
+mod rabbit_mq_config_patch;
 mod recover_in;
 mod recover_out;
-mod redshift_config;
-mod redshift_patch_config;
+mod redshift_config_in;
+mod redshift_config_out;
+mod redshift_config_patch;
 mod replay_in;
 mod replay_out;
 mod rotate_poller_token_in;
+mod rotate_subscription_in2;
 mod rotate_token_out;
 mod rutter_config;
 mod rutter_config_out;
-mod s3_config;
+mod s3_config_in;
+mod s3_config_out;
+mod s3_config_patch;
 mod segment_config;
 mod segment_config_out;
 mod shopify_config;
 mod shopify_config_out;
-mod sink_http_config;
+mod sink_http_config_in;
+mod sink_http_config_out;
+mod sink_http_config_patch;
 mod sink_in_common;
-mod sink_otel_v1_config;
 mod sink_secret_out;
+mod sink_secret_rotate_out;
 mod sink_status;
 mod sink_status_in;
 mod sink_transform_in;
 mod sink_transformation_out;
 mod slack_config;
 mod slack_config_out;
-mod snowflake_config;
-mod snowflake_patch_config;
-mod sns_config;
-mod sns_patch_config;
-mod sqs_config;
-mod sqs_patch_config;
+mod snowflake_config_in;
+mod snowflake_config_out;
+mod snowflake_config_patch;
+mod sns_config_in;
+mod sns_config_out;
+mod sns_config_patch;
+mod sqs_config_in;
+mod sqs_config_out;
+mod sqs_config_patch;
 mod starting_position;
+mod status;
 mod status_code_class;
 mod stream_event_type_in;
 mod stream_event_type_out;
@@ -210,6 +260,8 @@ mod tailscale_config;
 mod tailscale_config_out;
 mod telnyx_config;
 mod telnyx_config_out;
+mod tricentis_qtest_config;
+mod tricentis_qtest_config_out;
 mod vapi_config;
 mod vapi_config_out;
 mod veriff_config;
@@ -232,7 +284,6 @@ pub use self::{
     aggregate_event_types_out::AggregateEventTypesOut,
     airwallex_config::AirwallexConfig,
     airwallex_config_out::AirwallexConfigOut,
-    amazon_s3_patch_config::AmazonS3PatchConfig,
     api_token_out::ApiTokenOut,
     app_portal_access_in::AppPortalAccessIn,
     app_portal_access_out::AppPortalAccessOut,
@@ -243,34 +294,61 @@ pub use self::{
     application_out::ApplicationOut,
     application_patch::ApplicationPatch,
     application_token_expire_in::ApplicationTokenExpireIn,
+    archive_status::ArchiveStatus,
+    ascend_config::AscendConfig,
+    ascend_config_out::AscendConfigOut,
     authentication_source::AuthenticationSource,
+    auto_config_out::AutoConfigOut,
     auto_config_sink_type::AutoConfigSinkType,
-    azure_blob_storage_config::AzureBlobStorageConfig,
-    azure_blob_storage_patch_config::AzureBlobStoragePatchConfig,
+    auto_config_subscription_out::AutoConfigSubscriptionOut,
+    azure_blob_storage_config_in::AzureBlobStorageConfigIn,
+    azure_blob_storage_config_out::AzureBlobStorageConfigOut,
+    azure_blob_storage_config_patch::AzureBlobStorageConfigPatch,
     background_task_out::BackgroundTaskOut,
     background_task_status::BackgroundTaskStatus,
     background_task_type::BackgroundTaskType,
-    big_query_config::BigQueryConfig,
-    big_query_patch_config::BigQueryPatchConfig,
+    big_query_config_in::BigQueryConfigIn,
+    big_query_config_out::BigQueryConfigOut,
+    big_query_config_patch::BigQueryConfigPatch,
+    bitbucket_config::BitbucketConfig,
+    bitbucket_config_out::BitbucketConfigOut,
+    bulk_expunge_contents_in::BulkExpungeContentsIn,
+    bulk_expunge_contents_out::BulkExpungeContentsOut,
+    bulk_expunge_status::BulkExpungeStatus,
     bulk_replay_in::BulkReplayIn,
     checkbook_config::CheckbookConfig,
     checkbook_config_out::CheckbookConfigOut,
-    clickhouse_config::ClickhouseConfig,
-    clickhouse_patch_config::ClickhousePatchConfig,
+    clickhouse_config_in::ClickhouseConfigIn,
+    clickhouse_config_out::ClickhouseConfigOut,
+    clickhouse_config_patch::ClickhouseConfigPatch,
     connector_in::ConnectorIn,
     connector_kind::ConnectorKind,
     connector_out::ConnectorOut,
     connector_patch::ConnectorPatch,
     connector_product::ConnectorProduct,
     connector_upsert_in::ConnectorUpsertIn,
+    create_auto_config_subscription_in::CreateAutoConfigSubscriptionIn,
     create_stream_events_in::CreateStreamEventsIn,
     create_stream_events_out::CreateStreamEventsOut,
     cron_config::CronConfig,
+    destination_in::{DestinationIn, DestinationInConfig},
+    destination_out::{DestinationOut, DestinationOutConfig},
+    destination_patch::{DestinationPatch, DestinationPatchConfig},
+    destination_secret_rotate_out::DestinationSecretRotateOut,
+    destination_status::DestinationStatus,
+    destination_status_in::DestinationStatusIn,
+    destination_transform_in::DestinationTransformIn,
+    destination_transformation_out::DestinationTransformationOut,
     docusign_config::DocusignConfig,
     docusign_config_out::DocusignConfigOut,
     easypost_config::EasypostConfig,
     easypost_config_out::EasypostConfigOut,
+    elastic_search_config_in::ElasticSearchConfigIn,
+    elastic_search_config_out::ElasticSearchConfigOut,
+    elastic_search_config_patch::ElasticSearchConfigPatch,
+    elastic_search_operation::ElasticSearchOperation,
     empty_response::EmptyResponse,
+    endpoint_attempt_stats::EndpointAttemptStats,
     endpoint_headers_in::EndpointHeadersIn,
     endpoint_headers_out::EndpointHeadersOut,
     endpoint_headers_patch_in::EndpointHeadersPatchIn,
@@ -287,8 +365,9 @@ pub use self::{
     endpoint_upsert_in::EndpointUpsertIn,
     environment_in::EnvironmentIn,
     environment_out::EnvironmentOut,
-    event_bridge_config::EventBridgeConfig,
-    event_bridge_patch_config::EventBridgePatchConfig,
+    event_bridge_config_in::EventBridgeConfigIn,
+    event_bridge_config_out::EventBridgeConfigOut,
+    event_bridge_config_patch::EventBridgeConfigPatch,
     event_example_in::EventExampleIn,
     event_in::EventIn,
     event_out::EventOut,
@@ -302,13 +381,15 @@ pub use self::{
     event_type_patch::EventTypePatch,
     event_type_upsert_in::EventTypeUpsertIn,
     expunge_all_contents_out::ExpungeAllContentsOut,
+    fifo_endpoint_config_in::FifoEndpointConfigIn,
     github_config::GithubConfig,
     github_config_out::GithubConfigOut,
-    google_cloud_pub_sub_config::GoogleCloudPubSubConfig,
-    google_cloud_pub_sub_patch_config::GoogleCloudPubSubPatchConfig,
-    google_cloud_storage_config::GoogleCloudStorageConfig,
-    google_cloud_storage_patch_config::GoogleCloudStoragePatchConfig,
-    http_patch_config::HttpPatchConfig,
+    google_cloud_pub_sub_config_in::GoogleCloudPubSubConfigIn,
+    google_cloud_pub_sub_config_out::GoogleCloudPubSubConfigOut,
+    google_cloud_pub_sub_config_patch::GoogleCloudPubSubConfigPatch,
+    google_cloud_storage_config_in::GoogleCloudStorageConfigIn,
+    google_cloud_storage_config_out::GoogleCloudStorageConfigOut,
+    google_cloud_storage_config_patch::GoogleCloudStorageConfigPatch,
     http_sink_headers_patch_in::HttpSinkHeadersPatchIn,
     hubspot_config::HubspotConfig,
     hubspot_config_out::HubspotConfigOut,
@@ -331,6 +412,7 @@ pub use self::{
     list_response_application_out::ListResponseApplicationOut,
     list_response_background_task_out::ListResponseBackgroundTaskOut,
     list_response_connector_out::ListResponseConnectorOut,
+    list_response_destination_out::ListResponseDestinationOut,
     list_response_endpoint_message_out::ListResponseEndpointMessageOut,
     list_response_endpoint_out::ListResponseEndpointOut,
     list_response_event_type_out::ListResponseEventTypeOut,
@@ -344,6 +426,8 @@ pub use self::{
     list_response_stream_event_type_out::ListResponseStreamEventTypeOut,
     list_response_stream_out::ListResponseStreamOut,
     list_response_stream_sink_out::ListResponseStreamSinkOut,
+    merge_config::MergeConfig,
+    merge_config_out::MergeConfigOut,
     message_attempt_out::MessageAttemptOut,
     message_attempt_trigger_type::MessageAttemptTriggerType,
     message_endpoint_out::MessageEndpointOut,
@@ -369,7 +453,9 @@ pub use self::{
     ordering::Ordering,
     orum_io_config::OrumIoConfig,
     orum_io_config_out::OrumIoConfigOut,
-    otel_tracing_patch_config::OtelTracingPatchConfig,
+    otel_tracing_config_in::OtelTracingConfigIn,
+    otel_tracing_config_out::OtelTracingConfigOut,
+    otel_tracing_config_patch::OtelTracingConfigPatch,
     panda_doc_config::PandaDocConfig,
     panda_doc_config_out::PandaDocConfigOut,
     poller_v2_commit_in::PollerV2CommitIn,
@@ -381,40 +467,57 @@ pub use self::{
     polling_endpoint_out::PollingEndpointOut,
     port_io_config::PortIoConfig,
     port_io_config_out::PortIoConfigOut,
-    rabbit_mq_config::RabbitMqConfig,
-    rabbit_mq_patch_config::RabbitMqPatchConfig,
+    post_hog_config_in::PostHogConfigIn,
+    post_hog_config_out::PostHogConfigOut,
+    post_hog_config_patch::PostHogConfigPatch,
+    postgres_config_in::PostgresConfigIn,
+    postgres_config_out::PostgresConfigOut,
+    postgres_config_patch::PostgresConfigPatch,
+    rabbit_mq_config_in::RabbitMqConfigIn,
+    rabbit_mq_config_out::RabbitMqConfigOut,
+    rabbit_mq_config_patch::RabbitMqConfigPatch,
     recover_in::RecoverIn,
     recover_out::RecoverOut,
-    redshift_config::RedshiftConfig,
-    redshift_patch_config::RedshiftPatchConfig,
+    redshift_config_in::RedshiftConfigIn,
+    redshift_config_out::RedshiftConfigOut,
+    redshift_config_patch::RedshiftConfigPatch,
     replay_in::ReplayIn,
     replay_out::ReplayOut,
     rotate_poller_token_in::RotatePollerTokenIn,
+    rotate_subscription_in2::RotateSubscriptionIn2,
     rotate_token_out::RotateTokenOut,
     rutter_config::RutterConfig,
     rutter_config_out::RutterConfigOut,
-    s3_config::S3Config,
+    s3_config_in::S3ConfigIn,
+    s3_config_out::S3ConfigOut,
+    s3_config_patch::S3ConfigPatch,
     segment_config::SegmentConfig,
     segment_config_out::SegmentConfigOut,
     shopify_config::ShopifyConfig,
     shopify_config_out::ShopifyConfigOut,
-    sink_http_config::SinkHttpConfig,
+    sink_http_config_in::SinkHttpConfigIn,
+    sink_http_config_out::SinkHttpConfigOut,
+    sink_http_config_patch::SinkHttpConfigPatch,
     sink_in_common::SinkInCommon,
-    sink_otel_v1_config::SinkOtelV1Config,
     sink_secret_out::SinkSecretOut,
+    sink_secret_rotate_out::SinkSecretRotateOut,
     sink_status::SinkStatus,
     sink_status_in::SinkStatusIn,
     sink_transform_in::SinkTransformIn,
     sink_transformation_out::SinkTransformationOut,
     slack_config::SlackConfig,
     slack_config_out::SlackConfigOut,
-    snowflake_config::SnowflakeConfig,
-    snowflake_patch_config::SnowflakePatchConfig,
-    sns_config::SnsConfig,
-    sns_patch_config::SnsPatchConfig,
-    sqs_config::SqsConfig,
-    sqs_patch_config::SqsPatchConfig,
+    snowflake_config_in::SnowflakeConfigIn,
+    snowflake_config_out::SnowflakeConfigOut,
+    snowflake_config_patch::SnowflakeConfigPatch,
+    sns_config_in::SnsConfigIn,
+    sns_config_out::SnsConfigOut,
+    sns_config_patch::SnsConfigPatch,
+    sqs_config_in::SqsConfigIn,
+    sqs_config_out::SqsConfigOut,
+    sqs_config_patch::SqsConfigPatch,
     starting_position::StartingPosition,
+    status::Status,
     status_code_class::StatusCodeClass,
     stream_event_type_in::StreamEventTypeIn,
     stream_event_type_out::StreamEventTypeOut,
@@ -436,6 +539,8 @@ pub use self::{
     tailscale_config_out::TailscaleConfigOut,
     telnyx_config::TelnyxConfig,
     telnyx_config_out::TelnyxConfigOut,
+    tricentis_qtest_config::TricentisQtestConfig,
+    tricentis_qtest_config_out::TricentisQtestConfigOut,
     vapi_config::VapiConfig,
     vapi_config_out::VapiConfigOut,
     veriff_config::VeriffConfig,

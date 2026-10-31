@@ -5,6 +5,7 @@ import com.svix.SvixHttpClient;
 import com.svix.Utils;
 import com.svix.exceptions.ApiException;
 import com.svix.models.BulkReplayIn;
+import com.svix.models.EndpointAttemptStats;
 import com.svix.models.EndpointHeadersIn;
 import com.svix.models.EndpointHeadersOut;
 import com.svix.models.EndpointHeadersPatchIn;
@@ -168,12 +169,12 @@ public class Endpoint {
      *
      * <p>The previous secret will remain valid for the specified grace period (default 24 hours).
      */
-    public void rotateSecret(
+    public EndpointSecretOut rotateSecret(
             final String appId,
             final String endpointId,
             final EndpointSecretRotateIn endpointSecretRotateIn)
             throws IOException, ApiException {
-        this.rotateSecret(
+        return this.rotateSecret(
                 appId, endpointId, endpointSecretRotateIn, new EndpointRotateSecretOptions());
     }
 
@@ -182,7 +183,7 @@ public class Endpoint {
      *
      * <p>The previous secret will remain valid for the specified grace period (default 24 hours).
      */
-    public void rotateSecret(
+    public EndpointSecretOut rotateSecret(
             final String appId,
             final String endpointId,
             final EndpointSecretRotateIn endpointSecretRotateIn,
@@ -199,8 +200,12 @@ public class Endpoint {
         if (options.idempotencyKey != null) {
             headers.put("idempotency-key", options.idempotencyKey);
         }
-        this.client.executeRequest(
-                "POST", url.build(), Headers.of(headers), endpointSecretRotateIn, null);
+        return this.client.executeRequest(
+                "POST",
+                url.build(),
+                Headers.of(headers),
+                endpointSecretRotateIn,
+                EndpointSecretOut.class);
     }
 
     /** Get the additional headers to be sent with the webhook. */
@@ -360,6 +365,43 @@ public class Endpoint {
             url.addQueryParameter("until", Utils.serializeQueryParam(options.until));
         }
         return this.client.executeRequest("GET", url.build(), null, null, EndpointStats.class);
+    }
+
+    /**
+     * Get basic statistics about attempted deliveries for the endpoint.
+     *
+     * <p>Time windows are always rounded to hour granularity
+     */
+    public EndpointAttemptStats getAttemptStats(final String appId, final String endpointId)
+            throws IOException, ApiException {
+        return this.getAttemptStats(appId, endpointId, new EndpointGetAttemptStatsOptions());
+    }
+
+    /**
+     * Get basic statistics about attempted deliveries for the endpoint.
+     *
+     * <p>Time windows are always rounded to hour granularity
+     */
+    public EndpointAttemptStats getAttemptStats(
+            final String appId,
+            final String endpointId,
+            final EndpointGetAttemptStatsOptions options)
+            throws IOException, ApiException {
+        HttpUrl.Builder url =
+                this.client
+                        .newUrlBuilder()
+                        .encodedPath(
+                                String.format(
+                                        "/api/v1/app/%s/endpoint/%s/attempt-stats",
+                                        appId, endpointId));
+        if (options.since != null) {
+            url.addQueryParameter("since", Utils.serializeQueryParam(options.since));
+        }
+        if (options.until != null) {
+            url.addQueryParameter("until", Utils.serializeQueryParam(options.until));
+        }
+        return this.client.executeRequest(
+                "GET", url.build(), null, null, EndpointAttemptStats.class);
     }
 
     /**
