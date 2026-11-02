@@ -1354,7 +1354,9 @@ mod tests {
             Ok::<_, Infallible>(Frame::data(Bytes::from(vec![b'a'; 1000])))
         }));
 
-        let bytes = read_body_up_to(StreamBody::new(frames), 2500).await.unwrap();
+        let bytes = read_body_up_to(StreamBody::new(frames), 2500)
+            .await
+            .unwrap();
 
         assert_eq!(bytes.len(), 2500);
         assert_eq!(frames_read.load(Ordering::Relaxed), 3);
